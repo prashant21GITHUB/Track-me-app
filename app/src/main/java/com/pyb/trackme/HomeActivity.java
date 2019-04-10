@@ -1,12 +1,17 @@
 package com.pyb.trackme;
 
 import android.Manifest;
+import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
+import android.os.Build;
 import android.os.Bundle;
 import android.provider.ContactsContract;
 import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AppCompatActivity;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.view.View;
 import android.widget.ArrayAdapter;
 import android.widget.ListView;
@@ -23,6 +28,7 @@ public class HomeActivity extends AppCompatActivity {
     private List<String> contactList;
 
     public static final int RequestPermissionCode  = 1 ;
+    public static final int EXIT_CODE = 111;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -74,20 +80,24 @@ public class HomeActivity extends AppCompatActivity {
     }
 
     public void EnableRuntimePermission(){
-
-        if (ActivityCompat.shouldShowRequestPermissionRationale(
-                HomeActivity.this,
-                Manifest.permission.READ_CONTACTS))
-        {
-
-            Toast.makeText(HomeActivity.this,"CONTACTS permission allows us to Access contacts", Toast.LENGTH_LONG).show();
-
-        } else {
-
-            ActivityCompat.requestPermissions(HomeActivity.this,new String[]{
-                    Manifest.permission.READ_CONTACTS}, RequestPermissionCode);
-
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && checkSelfPermission(Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(new String[]{Manifest.permission.READ_CONTACTS}, RequestPermissionCode);
+            //After this point you wait for callback in onRequestPermissionsResult(int, String[], int[]) overriden method
         }
+
+//        if (ActivityCompat.shouldShowRequestPermissionRationale(
+//                HomeActivity.this,
+//                Manifest.permission.READ_CONTACTS))
+//        {
+//
+//            Toast.makeText(HomeActivity.this,"CONTACTS permission allows us to Access contacts", Toast.LENGTH_LONG).show();
+//
+//        } else {
+//
+//            ActivityCompat.requestPermissions(HomeActivity.this,new String[]{
+//                    Manifest.permission.READ_CONTACTS}, RequestPermissionCode);
+//
+//        }
     }
 
     @Override
@@ -105,10 +115,63 @@ public class HomeActivity extends AppCompatActivity {
                 } else {
 
                     Toast.makeText(HomeActivity.this,"Permission Canceled, Now your application cannot access CONTACTS.", Toast.LENGTH_LONG).show();
+                    this.finish();
 
                 }
                 break;
         }
     }
 
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        // Inflate the menu; this adds items to the action bar if it is present.
+        getMenuInflater().inflate(R.menu.home_activity_menu, menu);
+        return true;
+    }
+
+    public boolean onOptionsItemSelected(MenuItem item) {
+
+        switch (item.getItemId()) {
+
+            case R.id.logout:
+                clearSavedLoginDetails();
+                Intent intent = new Intent(HomeActivity.this, LoginActivity.class);
+                startActivityForResult(intent, EXIT_CODE);
+                return true;
+
+            default:
+                return super.onOptionsItemSelected(item);
+
+        }
+    }
+
+    private void clearSavedLoginDetails() {
+        SharedPreferences preferences = getSharedPreferences(getApplicationInfo().packageName +"_Login", MODE_PRIVATE);
+        SharedPreferences.Editor editor = preferences.edit();
+        editor.putString("Mobile", "");
+        editor.putString("Password", "");
+        editor.commit();
+    }
+
+    @Override
+    public void onStop() {
+        super.onStop();
+        setResult(EXIT_CODE);
+    }
+
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+        setResult(EXIT_CODE);
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        if(resultCode == EXIT_CODE){
+            finish();
+        }
+    }
+
 }
+
+

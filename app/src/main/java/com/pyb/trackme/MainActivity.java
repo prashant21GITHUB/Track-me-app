@@ -42,6 +42,7 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
+
     private void onSubmitButtonClick() {
         String mobile = mobileNumber.getText().toString();
         if(!isValidNumber(mobile)) {
