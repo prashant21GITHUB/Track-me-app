@@ -2,23 +2,6 @@
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent" android:layout_height="match_parent">
 
-    <TextView
-        android:id="@+id/textView"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_alignParentTop="true"
-        android:layout_centerHorizontal="true"
-        android:text="Select contact to track" />
-
-    <SearchView
-        android:id="@+id/search_contact"
-        android:queryHint="Search contact"
-        android:searchHintIcon="@color/colorPrimary"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_below="@+id/textView"
-        android:layout_centerHorizontal="true"
-        android:layout_toRightOf="@id/divider2"/>
 
     <View
         android:id="@+id/divider2"
@@ -29,11 +12,53 @@
         android:layout_marginStart="30dp"
         android:background="?android:attr/listDivider" />
 
-    <ListView
-        android:id="@+id/search_contact_list"
+    <TextView
+        android:id="@+id/greetings"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_below="@+id/search_contact"
+        android:layout_alignParentTop="true"
         android:layout_centerHorizontal="true"
-        android:layout_toRightOf="@id/divider2"/>
+        android:textSize="20sp"
+        android:text="Hi"
+       />
+
+    <EditText
+        android:id="@+id/mobile_number_track"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@+id/greetings"
+        android:layout_marginTop="10dp"
+        android:maxLength="10"
+        android:layout_toRightOf="@id/divider2"
+        android:ems="10"
+        android:hint="Mobile number to track"
+        android:inputType="number" />
+
+    <Button
+        android:id="@+id/track_btn"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentEnd="true"
+        android:layout_marginTop="10dp"
+        android:layout_below="@+id/greetings"
+        android:text="GO" />
+
+    <!--<SearchView-->
+        <!--android:id="@+id/search_contact"-->
+        <!--android:queryHint="Search contact"-->
+        <!--android:searchHintIcon="@color/colorPrimary"-->
+        <!--android:layout_width="match_parent"-->
+        <!--android:layout_height="wrap_content"-->
+        <!--android:layout_below="@+id/textView"-->
+        <!--android:layout_centerHorizontal="true"-->
+        <!--android:layout_toRightOf="@id/divider2"/>-->
+
+
+    <!--<ListView-->
+        <!--android:id="@+id/search_contact_list"-->
+        <!--android:layout_width="wrap_content"-->
+        <!--android:layout_height="wrap_content"-->
+        <!--android:layout_below="@+id/search_contact"-->
+        <!--android:layout_centerHorizontal="true"-->
+        <!--android:layout_toRightOf="@id/divider2"/>-->
 </RelativeLayout>

@@ -14,8 +14,11 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.ArrayAdapter;
+import android.widget.Button;
+import android.widget.EditText;
 import android.widget.ListView;
 import android.widget.SearchView;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import java.util.ArrayList;
@@ -26,6 +29,11 @@ public class HomeActivity extends AppCompatActivity {
     private SearchView searchView;
     private ListView searchContactListView;
     private List<String> contactList;
+    private String loggedInName;
+    private String loggedInMobile;
+    private TextView greetingsView;
+    private EditText mobileNumberToTrack;
+    private Button trackBtn;
 
     public static final int RequestPermissionCode  = 1 ;
     public static final int EXIT_CODE = 111;
@@ -33,33 +41,60 @@ public class HomeActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        setLoggedInUserDetails(getIntent().getExtras());
         setContentView(R.layout.home_activity);
-        searchView = findViewById(R.id.search_contact);
-        searchContactListView = findViewById(R.id.search_contact_list);
-        contactList = new ArrayList<>();
-        searchView.requestFocus();
-        searchView.setEnabled(false);
+        trackBtn = findViewById(R.id.track_btn);
+        greetingsView = findViewById(R.id.greetings);
+        mobileNumberToTrack = findViewById(R.id.mobile_number_track);
 
-        searchView.setOnSearchClickListener(new View.OnClickListener() {
+        greetingsView.setText("Hello " + loggedInName);
+        trackBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                GetContactsIntoArrayList();
-
-                ArrayAdapter arrayAdapter = new ArrayAdapter<String>(
-                        HomeActivity.this,
-                        R.layout.contact_items_listview,
-                        R.id.textView, contactList
-                );
-
-                searchContactListView.setAdapter(arrayAdapter);
+                onTrackBtnClick();
             }
         });
+
+//        searchView = findViewById(R.id.search_contact);
+//        searchContactListView = findViewById(R.id.search_contact_list);
+//        contactList = new ArrayList<>();
+//        searchView.requestFocus();
+//        searchView.setEnabled(false);
+
+//        searchView.setOnSearchClickListener(new View.OnClickListener() {
+//            @Override
+//            public void onClick(View v) {
+//                GetContactsIntoArrayList();
+//
+//                ArrayAdapter arrayAdapter = new ArrayAdapter<String>(
+//                        HomeActivity.this,
+//                        R.layout.contact_items_listview,
+//                        R.id.textView, contactList
+//                );
+//
+//                searchContactListView.setAdapter(arrayAdapter);
+//            }
+//        });
+    }
+
+    private void onTrackBtnClick() {
+        String mobileNo = mobileNumberToTrack.getText().toString();
+        if(!ValidationUtils.isValidNumber(mobileNo)) {
+            Toast.makeText(this, "Enter valid mobile number !!", Toast.LENGTH_SHORT).show();
+        } else {
+            Toast.makeText(this, "Request sent !!", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void setLoggedInUserDetails(Bundle bundle) {
+        loggedInName = bundle.getString("name", "");
+        loggedInMobile = bundle.getString("mobile", "");
     }
 
     @Override
     protected void onResume() {
         super.onResume();
-        EnableRuntimePermission();
+//        EnableRuntimePermission();
     }
 
     public void GetContactsIntoArrayList(){
@@ -151,6 +186,8 @@ public class HomeActivity extends AppCompatActivity {
         editor.putString("Mobile", "");
         editor.putString("Password", "");
         editor.commit();
+        this.loggedInName = "";
+        this.loggedInMobile = "";
     }
 
     @Override

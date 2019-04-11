@@ -58,21 +58,21 @@ public class RegistrationActivity extends AppCompatActivity {
 
     private void onSubmitButtonClick() {
         String name = fullName.getText().toString();
-        if(!isValidName(name)) {
+        if(!ValidationUtils.isValidName(name)) {
             mobileNumber.requestFocus();
             Toast.makeText(getApplicationContext(), "Enter valid name !!", Toast.LENGTH_SHORT).show();
             return;
         }
 
         String mobile = mobileNumber.getText().toString();
-        if(!isValidNumber(mobile)) {
+        if(!ValidationUtils.isValidNumber(mobile)) {
             mobileNumber.requestFocus();
             Toast.makeText(getApplicationContext(), "Enter valid 10 digit mobile number !!", Toast.LENGTH_SHORT).show();
             return;
         }
 
         String pwd = this.password.getText().toString();
-        if(!isValidPassword(pwd)) {
+        if(!ValidationUtils.isValidPassword(pwd)) {
             this.password.requestFocus();
             Toast.makeText(getApplicationContext(), "Password can't be blank !!", Toast.LENGTH_SHORT).show();
             return;
@@ -84,19 +84,8 @@ public class RegistrationActivity extends AppCompatActivity {
 
     }
 
-    private boolean isValidName(String name) {
-        return name != null && name.matches("(?i)[a-z][a-z0-9_]*");
-    }
 
-    private boolean isValidNumber(String mobile) {
-        return mobile != null && mobile.matches("[6-9]{1}[0-9]{9}");
-    }
-
-    private boolean isValidPassword(String pwd) {
-        return pwd != null && !pwd.isEmpty();
-    }
-
-    private void registerUser(String name, final String mobileNumber, final String password) {
+    private void registerUser(final String name, final String mobileNumber, final String password) {
         RequestParams requestParams = new RequestParams();
         requestParams.setUseJsonStreamer(true);
         requestParams.put("name", name);
@@ -110,6 +99,10 @@ public class RegistrationActivity extends AppCompatActivity {
                     if(response.getBoolean("success")) {
                         saveUserLoginDetails(mobileNumber, password);
                         Intent intent = new Intent(RegistrationActivity.this, HomeActivity.class);
+                        Bundle bundle = new Bundle();
+                        bundle.putString("name", name);
+                        bundle.putString("mobile", mobileNumber);
+                        intent.putExtras(bundle);
                         startActivityForResult(intent, EXIT_CODE);
                     } else {
                         Toast.makeText(getApplicationContext(), response.getString("message"), Toast.LENGTH_SHORT).show();

@@ -30,6 +30,8 @@ public class LoginActivity extends AppCompatActivity {
     private ProgressBar progressBar;
     private boolean isUserLoggedIn;
     private final static int EXIT_CODE = 111;
+    private String loggedInName;
+    private String loggedInMobile;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -64,20 +66,24 @@ public class LoginActivity extends AppCompatActivity {
         super.onResume();
         if(isUserLoggedIn) {
             Intent intent = new Intent(this, HomeActivity.class);
+            Bundle bundle = new Bundle();
+            bundle.putString("name", loggedInName);
+            bundle.putString("mobile", loggedInMobile);
+            intent.putExtras(bundle);
             startActivityForResult(intent, EXIT_CODE);
         }
     }
 
     private void onSubmitButtonClick() {
         String mobile = mobileNumber.getText().toString();
-        if(!isValidNumber(mobile)) {
+        if(!ValidationUtils.isValidNumber(mobile)) {
             mobileNumber.requestFocus();
             Toast.makeText(getApplicationContext(), "Enter valid 10 digit mobile number !!", Toast.LENGTH_SHORT).show();
             return;
         }
 
         String pwd = this.password.getText().toString();
-        if(!isValidPassword(pwd)) {
+        if(!ValidationUtils.isValidPassword(pwd)) {
             this.password.requestFocus();
             Toast.makeText(getApplicationContext(), "Password can't be blank !!", Toast.LENGTH_SHORT).show();
             return;
@@ -87,14 +93,6 @@ public class LoginActivity extends AppCompatActivity {
 
         loginUser(mobile, pwd);
 
-    }
-
-    private boolean isValidNumber(String mobile) {
-        return mobile != null && mobile.matches("[6-9]{1}[0-9]{9}");
-    }
-
-    private boolean isValidPassword(String pwd) {
-        return pwd != null && !pwd.isEmpty();
     }
 
     private void loginUser(final String mobileNumber, final String password) {
@@ -108,8 +106,12 @@ public class LoginActivity extends AppCompatActivity {
                 progressBar.setVisibility(View.GONE);
                 try {
                     if(response.getBoolean("success")) {
-                        saveUserLoginDetails(mobileNumber, password);
+                        saveUserLoginDetails(mobileNumber, response.getString("name"));
                         Intent intent = new Intent(LoginActivity.this, HomeActivity.class);
+                        Bundle bundle = new Bundle();
+                        bundle.putString("name", response.getString("name"));
+                        bundle.putString("mobile", response.getString("mobile"));
+                        intent.putExtras(bundle);
                         startActivityForResult(intent, EXIT_CODE);
                     } else {
                         Toast.makeText(getApplicationContext(), response.getString("message"), Toast.LENGTH_SHORT).show();
@@ -149,15 +151,17 @@ public class LoginActivity extends AppCompatActivity {
     private boolean checkIfUserAlreadyLoggedIn() {
         SharedPreferences preferences = this.getSharedPreferences(getApplicationInfo().packageName +"_Login", MODE_PRIVATE);
         String mobile = preferences.getString("Mobile", "");
-        String pwd = preferences.getString("Password", "");
-        return !mobile.isEmpty() && !pwd.isEmpty();
+        String name = preferences.getString("Name", "");
+        loggedInName = name;
+        loggedInMobile = mobile;
+        return !mobile.isEmpty() && !name.isEmpty();
     }
 
-    private void saveUserLoginDetails(String mobileNumber, String password) {
+    private void saveUserLoginDetails(String mobileNumber, String name) {
         SharedPreferences preferences = getSharedPreferences(getApplicationInfo().packageName +"_Login", MODE_PRIVATE);
         SharedPreferences.Editor editor = preferences.edit();
         editor.putString("Mobile", mobileNumber);
-        editor.putString("Password", password);
+        editor.putString("Name", name);
         editor.commit();
     }
 
