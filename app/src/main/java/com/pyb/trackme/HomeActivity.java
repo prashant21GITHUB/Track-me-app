@@ -10,6 +10,7 @@ import android.os.Bundle;
 import android.provider.ContactsContract;
 import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AppCompatActivity;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -21,14 +22,24 @@ import android.widget.SearchView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.github.nkzawa.emitter.Emitter;
+import com.github.nkzawa.socketio.client.IO;
+import com.github.nkzawa.socketio.client.Socket;
+
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.net.URISyntaxException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+
 
 public class HomeActivity extends AppCompatActivity {
 
     private SearchView searchView;
-    private ListView searchContactListView;
-    private List<String> contactList;
+    private ListView trackListView;
+    private List<String> coordinatesList;
     private String loggedInName;
     private String loggedInMobile;
     private TextView greetingsView;
@@ -38,6 +49,14 @@ public class HomeActivity extends AppCompatActivity {
     public static final int RequestPermissionCode  = 1 ;
     public static final int EXIT_CODE = 111;
 
+    private Socket mSocket;
+    private Emitter.Listener onSocketConnect = new Emitter.Listener() {
+        @Override
+        public void call(Object... args) {
+            Log.d("ok", "ok");
+        }
+    };
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -46,6 +65,14 @@ public class HomeActivity extends AppCompatActivity {
         trackBtn = findViewById(R.id.track_btn);
         greetingsView = findViewById(R.id.greetings);
         mobileNumberToTrack = findViewById(R.id.mobile_number_track);
+        trackListView = findViewById(R.id.track_list_view);
+        coordinatesList = new ArrayList<>();
+        arrayAdapter = new ArrayAdapter<>(
+                HomeActivity.this,
+                R.layout.contact_items_listview,
+                R.id.textView, coordinatesList
+        );
+        trackListView.setAdapter(arrayAdapter);
 
         greetingsView.setText("Hello " + loggedInName);
         trackBtn.setOnClickListener(new View.OnClickListener() {
@@ -54,6 +81,9 @@ public class HomeActivity extends AppCompatActivity {
                 onTrackBtnClick();
             }
         });
+        try {
+            mSocket = IO.socket("http://127.0.0.1:3000/");
+        } catch (URISyntaxException e) {}
 
 //        searchView = findViewById(R.id.search_contact);
 //        searchContactListView = findViewById(R.id.search_contact_list);
@@ -82,9 +112,43 @@ public class HomeActivity extends AppCompatActivity {
         if(!ValidationUtils.isValidNumber(mobileNo)) {
             Toast.makeText(this, "Enter valid mobile number !!", Toast.LENGTH_SHORT).show();
         } else {
-            Toast.makeText(this, "Request sent !!", Toast.LENGTH_SHORT).show();
+            mSocket.on(Socket.EVENT_MESSAGE, onNewMessage);
+            mSocket.on(Socket.EVENT_CONNECT, onSocketConnect);
+            mSocket.connect();
+            if(mSocket.connected()) {
+                mSocket.emit("locationCoords", "test message");
+                Toast.makeText(this, "Request sent !!", Toast.LENGTH_SHORT).show();
+            }
         }
     }
+
+    private ArrayAdapter<String> arrayAdapter;
+
+    private Emitter.Listener onNewMessage = new Emitter.Listener() {
+        @Override
+        public void call(final Object... args) {
+            HomeActivity.this.runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    JSONObject data = (JSONObject) args[0];
+                    String lat;
+                    String lng;
+                    try {
+                        lat = data.getString("lat");
+                        lng = data.getString("lng");
+
+                    } catch (JSONException e) {
+                        return;
+                    }
+
+                    arrayAdapter.addAll(lat, lng);
+
+                    // add the message to view
+//                    addMessage(username, message);
+                }
+            });
+        }
+    };
 
     private void setLoggedInUserDetails(Bundle bundle) {
         loggedInName = bundle.getString("name", "");
@@ -94,6 +158,7 @@ public class HomeActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
+
 //        EnableRuntimePermission();
     }
 
@@ -107,7 +172,7 @@ public class HomeActivity extends AppCompatActivity {
 
             number = cursor.getString(cursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER));
 
-            contactList.add(name + " "  + ":" + " " + number);
+//            contactList.add(name + " "  + ":" + " " + number);
         }
 
         cursor.close();
@@ -200,6 +265,11 @@ public class HomeActivity extends AppCompatActivity {
     public void onDestroy() {
         super.onDestroy();
         setResult(EXIT_CODE);
+        if(mSocket.connected()) {
+            String mobileNo = mobileNumberToTrack.getText().toString();
+            mSocket.disconnect();
+            mSocket.off(mobileNo, onNewMessage);
+        }
     }
 
     @Override

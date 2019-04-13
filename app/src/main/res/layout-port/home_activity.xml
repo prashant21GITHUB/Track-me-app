@@ -43,6 +43,25 @@
         android:layout_below="@+id/greetings"
         android:text="GO" />
 
+    <TextView
+        android:id="@+id/textView2"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@+id/mobile_number_track"
+        android:layout_toRightOf="@+id/divider2"
+        android:textSize="20sp"
+        android:text="Currently tracking " />
+
+    <ListView
+        android:id="@+id/track_list_view"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_toRightOf="@id/divider2"
+        android:layout_below="@+id/textView2"
+        android:layout_centerHorizontal="true" />
+
+
+
     <!--<SearchView-->
         <!--android:id="@+id/search_contact"-->
         <!--android:queryHint="Search contact"-->
