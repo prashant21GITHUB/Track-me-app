@@ -112,11 +112,17 @@ public class HomeActivity extends AppCompatActivity {
         if(!ValidationUtils.isValidNumber(mobileNo)) {
             Toast.makeText(this, "Enter valid mobile number !!", Toast.LENGTH_SHORT).show();
         } else {
-            mSocket.on(Socket.EVENT_MESSAGE, onNewMessage);
+            mSocket.on(mobileNo, onNewMessage);
             mSocket.on(Socket.EVENT_CONNECT, onSocketConnect);
             mSocket.connect();
             if(mSocket.connected()) {
-                mSocket.emit("locationCoords", "test message");
+                JSONObject jsonObject = new JSONObject();
+                try {
+                    jsonObject.put("mobile", "7767947111");
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                }
+                mSocket.emit("publish", jsonObject);
                 Toast.makeText(this, "Request sent !!", Toast.LENGTH_SHORT).show();
             }
         }
