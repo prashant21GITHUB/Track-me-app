@@ -31,7 +31,6 @@ import org.json.JSONObject;
 
 import java.net.URISyntaxException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 
@@ -54,8 +53,21 @@ public class HomeActivity extends AppCompatActivity {
         @Override
         public void call(Object... args) {
             Log.d("ok", "ok");
+            onServerConnection();
         }
     };
+
+    private void onServerConnection() {
+        runOnUiThread(new Runnable() {
+
+            public void run() {
+                Toast.makeText(HomeActivity.this, "Connected to server !!", Toast.LENGTH_SHORT).show();
+                trackBtn.setEnabled(true);
+            }
+        });
+
+
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -82,7 +94,10 @@ public class HomeActivity extends AppCompatActivity {
             }
         });
         try {
+            trackBtn.setEnabled(false);
             mSocket = IO.socket("http://127.0.0.1:3000/");
+            mSocket.on(Socket.EVENT_CONNECT, onSocketConnect);
+            mSocket.connect();
         } catch (URISyntaxException e) {}
 
 //        searchView = findViewById(R.id.search_contact);
@@ -112,18 +127,20 @@ public class HomeActivity extends AppCompatActivity {
         if(!ValidationUtils.isValidNumber(mobileNo)) {
             Toast.makeText(this, "Enter valid mobile number !!", Toast.LENGTH_SHORT).show();
         } else {
-            mSocket.on(mobileNo, onNewMessage);
-            mSocket.on(Socket.EVENT_CONNECT, onSocketConnect);
-            mSocket.connect();
             if(mSocket.connected()) {
-                JSONObject jsonObject = new JSONObject();
-                try {
-                    jsonObject.put("mobile", "7767947111");
-                } catch (JSONException e) {
-                    e.printStackTrace();
+                if(!mSocket.hasListeners(mobileNo)) {
+                    JSONObject jsonObject = new JSONObject();
+                    try {
+                        jsonObject.put("mobile", mobileNo);
+                    } catch (JSONException e) {
+                        e.printStackTrace();
+                    }
+                    mSocket.on(mobileNo, onNewMessage);
+                    mSocket.emit("subscribe", jsonObject);
                 }
-                mSocket.emit("publish", jsonObject);
                 Toast.makeText(this, "Request sent !!", Toast.LENGTH_SHORT).show();
+            } else {
+                Toast.makeText(this, "Not connected to server !!", Toast.LENGTH_SHORT).show();
             }
         }
     }
