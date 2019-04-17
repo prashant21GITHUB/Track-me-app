@@ -29,7 +29,6 @@ public class LoginActivity extends AppCompatActivity {
     private TextView regLink;
     private ProgressBar progressBar;
     private boolean isUserLoggedIn;
-    private final static int EXIT_CODE = 111;
     private String loggedInName;
     private String loggedInMobile;
 
@@ -55,7 +54,8 @@ public class LoginActivity extends AppCompatActivity {
                 @Override
                 public void onClick(View v) {
                     Intent intent = new Intent(LoginActivity.this, RegistrationActivity.class);
-                    startActivityForResult(intent, EXIT_CODE);
+//                    startActivityForResult(intent, EXIT_CODE);
+                    startActivity(intent);
                 }
             });
         }
@@ -70,7 +70,7 @@ public class LoginActivity extends AppCompatActivity {
             bundle.putString("name", loggedInName);
             bundle.putString("mobile", loggedInMobile);
             intent.putExtras(bundle);
-            startActivityForResult(intent, EXIT_CODE);
+            startActivity(intent);
         }
     }
 
@@ -112,7 +112,8 @@ public class LoginActivity extends AppCompatActivity {
                         bundle.putString("name", response.getString("name"));
                         bundle.putString("mobile", response.getString("mobile"));
                         intent.putExtras(bundle);
-                        startActivityForResult(intent, EXIT_CODE);
+                        startActivity(intent);
+//                        startActivityForResult(intent, EXIT_CODE);
                     } else {
                         Toast.makeText(getApplicationContext(), response.getString("message"), Toast.LENGTH_SHORT).show();
                     }
@@ -164,25 +165,5 @@ public class LoginActivity extends AppCompatActivity {
         editor.putString("Name", name);
         editor.commit();
     }
-
-    @Override
-    public void onStop() {
-        super.onStop();
-        setResult(EXIT_CODE);
-    }
-
-    @Override
-    public void onDestroy() {
-        super.onDestroy();
-        setResult(EXIT_CODE);
-    }
-
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        if(resultCode == EXIT_CODE){
-            finish();
-        }
-    }
-
 
 }
