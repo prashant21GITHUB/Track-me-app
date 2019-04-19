@@ -43,6 +43,8 @@
 
             </intent-filter>
         </activity>
+
+        <activity android:name=".SelectContactsActivity"  android:label="Select contacts"/>
     </application>
 
 </manifest>
