@@ -11,7 +11,8 @@
         android:textAppearance="?android:attr/textAppearanceListItemSmall"
         android:textColor="#444"
         android:layout_weight="1"
-        android:textSize="20sp"
+        android:foregroundGravity="center"
+        android:textSize="18sp"
         android:paddingLeft="10dp"
         android:background="?android:attr/activatedBackgroundIndicator"
         android:minHeight="?android:attr/listPreferredItemHeightSmall"/>
@@ -21,6 +22,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="center"
+        android:layout_marginRight="20dp"
         android:shadowColor="@color/colorPrimary"
         android:theme="@style/SwitchTheme"
      />

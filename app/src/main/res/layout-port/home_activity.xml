@@ -77,7 +77,7 @@
            <!--/>-->
 
         <Switch
-            android:id="@+id/stop_sharing_switch"
+            android:id="@+id/sharing_switch"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_below="@+id/toolbar"

@@ -1,26 +1,15 @@
 package com.pyb.trackme;
 
-import android.Manifest;
-import android.app.Activity;
-import android.content.Context;
-import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
-import android.content.pm.PackageManager;
-import android.database.Cursor;
 import android.graphics.Color;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
-import android.net.Uri;
-import android.os.Build;
+import android.os.AsyncTask;
 import android.os.Bundle;
-import android.provider.ContactsContract;
-import android.support.v4.app.ActivityCompat;
-import android.support.v4.content.ContextCompat;
 import android.support.v4.widget.DrawerLayout;
 import android.support.v7.app.ActionBarDrawerToggle;
-import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
@@ -30,9 +19,10 @@ import android.view.View;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.ProgressBar;
-import android.widget.SearchView;
+import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -49,10 +39,7 @@ import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.BitmapDescriptorFactory;
-import com.google.android.gms.maps.model.ButtCap;
-import com.google.android.gms.maps.model.Cap;
 import com.google.android.gms.maps.model.Dot;
-import com.google.android.gms.maps.model.Gap;
 import com.google.android.gms.maps.model.JointType;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
@@ -61,16 +48,19 @@ import com.google.android.gms.maps.model.PatternItem;
 import com.google.android.gms.maps.model.Polyline;
 import com.google.android.gms.maps.model.PolylineOptions;
 import com.google.android.gms.maps.model.RoundCap;
+import com.loopj.android.http.JsonHttpResponseHandler;
+import com.loopj.android.http.RequestParams;
 
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
+
+import cz.msebera.android.httpclient.Header;
 
 
 public class HomeActivity extends AppCompatActivity implements OnMapReadyCallback {
@@ -83,9 +73,15 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
     private EditText mobileNumberToTrack;
     private Button trackBtn;
     private DrawerLayout mDrawerLayout;
-    private ListView mDrawerList;
+    private ListView sharingListView;
+    private ListView trackingListView;
     private ArrayAdapter mStringAdaptor;
     private String[] mStringOfPlanets = {"one", "two"};
+    private List<String> sharingContactsList;
+    private List<String> trackingContactsList;
+    private LinearLayout sharingContactsLayout;
+    private LinearLayout trackingContactsLayout;
+    private Switch sharingSwitch;
 
     private Socket mSocket;
     private Emitter.Listener onSocketConnect = new Emitter.Listener() {
@@ -112,10 +108,13 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setLoggedInUserDetails(getIntent().getExtras());
         setContentView(R.layout.home_activity);
         Toolbar toolbar =  findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
+        setLoggedInUserDetails(getIntent().getExtras());
+        sharingContactsList = new ArrayList<>();
+        trackingContactsList = new ArrayList<>();
+        getTrackingDetailsFromServer();
 //        trackBtn = findViewById(R.id.track_btn);
         greetingsView = findViewById(R.id.greetings);
         mobileNumberToTrack = findViewById(R.id.mobile_number_track);
@@ -128,6 +127,8 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
         );
 //        trackListView.setAdapter(arrayAdapter);
 
+        sharingSwitch = findViewById(R.id.sharing_switch);
+        addListenersToSharingSwitch();
         greetingsView.setText("Hello " + loggedInName);
 //        trackBtn.setOnClickListener(new View.OnClickListener() {
 //            @Override
@@ -151,15 +152,71 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
         mFusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
 
         mDrawerLayout = (DrawerLayout) findViewById(R.id.drawer_layout);
-        mDrawerList = (ListView) findViewById(R.id.left_drawer);
+        ((TextView)mDrawerLayout.findViewById(R.id.drawer_header)).setText(loggedInName);
+        sharingContactsLayout = mDrawerLayout.findViewById(R.id.sharing_contacts_layout);
+        trackingContactsLayout = mDrawerLayout.findViewById(R.id.tracking_contacts_layout);
+        sharingListView = (ListView) findViewById(R.id.sharing_list_view);
+        trackingListView = findViewById(R.id.tracking_list_view);
         // init adaptor
         mStringAdaptor = new ArrayAdapter<String>(this, R.layout.drawer_list_item, mStringOfPlanets);
-        mDrawerList.setAdapter(new NavListViewAdapter(this, Arrays.asList(mStringOfPlanets)));
-        DrawerLayout drawer = (DrawerLayout) findViewById(R.id.drawer_layout);
-        ActionBarDrawerToggle toggle = new ActionBarDrawerToggle(this, drawer, toolbar, R.string.navigation_drawer_open, R.string.navigation_drawer_close);
-        drawer.addDrawerListener(toggle);
+        sharingListView.setAdapter(new NavListViewAdapter(this, sharingContactsList));
+        trackingListView.setAdapter(new NavListViewAdapter(this, trackingContactsList));
+        ActionBarDrawerToggle toggle = new ActionBarDrawerToggle(this, mDrawerLayout, toolbar, R.string.navigation_drawer_open, R.string.navigation_drawer_close);
+        mDrawerLayout.addDrawerListener(toggle);
         toggle.setDrawerIndicatorEnabled(true);
         toggle.syncState();
+    }
+
+    private void addListenersToSharingSwitch() {
+    }
+
+    private void getTrackingDetailsFromServer() {
+        RequestParams requestParams = new RequestParams();
+        requestParams.setUseJsonStreamer(true);
+        requestParams.put("mobile", loggedInMobile);
+        APIClient.put("user/track/details", requestParams, new JsonHttpResponseHandler() {
+            @Override
+            public void onSuccess(int statusCode, Header[] headers, JSONObject response) {
+                try {
+                    if(response.getBoolean("success")) {
+                        JSONArray arr = response.getJSONArray("sharingWith");
+                        for(int i=0; i < arr.length(); i++) {
+                            sharingContactsList.add(arr.getString(i));
+                        }
+                        if(sharingContactsList.isEmpty()) {
+                            sharingContactsLayout.setVisibility(View.GONE);
+                        }
+                        arr = response.getJSONArray("tracking");
+                        for(int i=0; i < arr.length(); i++) {
+                            trackingContactsList.add(arr.getString(i));
+                        }
+                        if(trackingContactsList.isEmpty()) {
+                            trackingContactsLayout.setVisibility(View.GONE);
+                        }
+                        ((ArrayAdapter) trackingListView.getAdapter()).notifyDataSetChanged();
+                        ((ArrayAdapter) sharingListView.getAdapter()).notifyDataSetChanged();
+                    } else {
+                        Toast.makeText(HomeActivity.this, "Failed to share location, please try after sometime !!", Toast.LENGTH_SHORT).show();
+                    }
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                }
+
+            }
+
+            @Override
+            public void onFailure(int statusCode, Header[] headers, Throwable throwable, JSONObject errorResponse) {
+//                progressBar.setVisibility(View.GONE);
+                Toast.makeText(HomeActivity.this, "Internal error, please try after sometime !!", Toast.LENGTH_SHORT).show();
+            }
+
+            @Override
+            public void onFailure(int statusCode, Header[] headers, String responseString, Throwable throwable) {
+//                progressBar.setVisibility(View.GONE);
+                Toast.makeText(HomeActivity.this, "Internal error, please try after sometime !!", Toast.LENGTH_SHORT).show();
+            }
+
+        });
     }
 
     private GoogleMap googleMap;
@@ -357,6 +414,22 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
             //move map camera
             googleMap.moveCamera(CameraUpdateFactory.newLatLngZoom(latLng, 18));
         }
+    }
+
+    private class ExecuteAsynTask extends AsyncTask<Void, Void, Void> {
+        protected Void doInBackground(Void... mobile) {
+            setLoggedInUserDetails(HomeActivity.this.getIntent().getExtras());
+
+            return null;
+        }
+
+        protected void onProgressUpdate(Void... progress) {
+//            setProgressPercent(progress[0]);
+        }
+
+        protected void onPostExecute(Void result) {
+        }
+
     }
 }
 

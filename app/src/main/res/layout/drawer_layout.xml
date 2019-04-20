@@ -12,27 +12,75 @@
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="#82c59c"
-        android:padding="30dp">
+        android:background="#225c88"
+        android:padding="30dp"
+        android:orientation="vertical">
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:textSize="25sp"
             android:textColor="#fdfdfd"
-            android:text="Welcome" />
+            android:text="Welcome"
+            android:textSize="15sp"/>
+
+        <TextView
+            android:id="@+id/drawer_header"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:fontFamily="@font/shojumaru"
+            android:textColor="#fdfdfd"
+            android:textSize="25sp" />
 
     </LinearLayout>
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:textSize="20sp"
-        android:layout_margin="10dp"
-        android:text="Currently tracking " />
-
-    <ListView android:id="@+id/left_drawer"
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="#d1e3f1"
-        />
+        android:orientation="vertical"
+        android:id="@+id/sharing_contacts_layout">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_margin="10dp"
+            android:fontFamily="@font/averia_sans_libre"
+            android:text="Sharing location with"
+            android:textColor="#336612"
+            android:textSize="20sp" />
+
+        <ListView android:id="@+id/sharing_list_view"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="#d1e3f1"
+            />
+    </LinearLayout>
+    <View
+        android:id="@+id/divider5"
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:layout_margin="2dp"
+        android:background="#99aa99" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:id="@+id/tracking_contacts_layout"
+        >
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_margin="10dp"
+            android:fontFamily="@font/aldrich"
+            android:text="Tracking users"
+            android:textColor="#1b4a6d"
+            android:textSize="18sp" />
+
+        <ListView android:id="@+id/tracking_list_view"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="#ddccbb"
+            />
+
+    </LinearLayout>
 
 </LinearLayout>
