@@ -18,8 +18,11 @@ import android.os.Bundle;
 import android.provider.ContactsContract;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
+import android.support.v4.widget.DrawerLayout;
+import android.support.v7.app.ActionBarDrawerToggle;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
+import android.support.v7.widget.Toolbar;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -72,13 +75,17 @@ import java.util.Set;
 
 public class HomeActivity extends AppCompatActivity implements OnMapReadyCallback {
 
-    private ListView trackListView;
+//    private ListView trackListView;
     private List<String> coordinatesList;
     private String loggedInName;
     private String loggedInMobile;
     private TextView greetingsView;
     private EditText mobileNumberToTrack;
     private Button trackBtn;
+    private DrawerLayout mDrawerLayout;
+    private ListView mDrawerList;
+    private ArrayAdapter mStringAdaptor;
+    private String[] mStringOfPlanets = {"one", "two"};
 
     private Socket mSocket;
     private Emitter.Listener onSocketConnect = new Emitter.Listener() {
@@ -95,7 +102,7 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
 
             public void run() {
                 Toast.makeText(HomeActivity.this, "Connected to server !!", Toast.LENGTH_SHORT).show();
-                trackBtn.setEnabled(true);
+//                trackBtn.setEnabled(true);
             }
         });
 
@@ -107,27 +114,29 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
         super.onCreate(savedInstanceState);
         setLoggedInUserDetails(getIntent().getExtras());
         setContentView(R.layout.home_activity);
-        trackBtn = findViewById(R.id.track_btn);
+        Toolbar toolbar =  findViewById(R.id.toolbar);
+        setSupportActionBar(toolbar);
+//        trackBtn = findViewById(R.id.track_btn);
         greetingsView = findViewById(R.id.greetings);
         mobileNumberToTrack = findViewById(R.id.mobile_number_track);
-        trackListView = findViewById(R.id.track_list_view);
+//        trackListView = findViewById(R.id.track_list_view);
         coordinatesList = new ArrayList<>();
         arrayAdapter = new ArrayAdapter<>(
                 HomeActivity.this,
                 R.layout.contact_items_listview,
                 R.id.textView, coordinatesList
         );
-        trackListView.setAdapter(arrayAdapter);
+//        trackListView.setAdapter(arrayAdapter);
 
         greetingsView.setText("Hello " + loggedInName);
-        trackBtn.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                onTrackBtnClick();
-            }
-        });
+//        trackBtn.setOnClickListener(new View.OnClickListener() {
+//            @Override
+//            public void onClick(View v) {
+////                onTrackBtnClick();
+//            }
+//        });
         try {
-            trackBtn.setEnabled(false);
+//            trackBtn.setEnabled(false);
             mSocket = IO.socket("http://127.0.0.1:3000/");
             mSocket.on(Socket.EVENT_CONNECT, onSocketConnect);
             mSocket.connect();
@@ -140,6 +149,17 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
         mapFragment.getMapAsync(this);
 //        this.locationListener = new HomeActivityLocationListener();
         mFusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
+
+        mDrawerLayout = (DrawerLayout) findViewById(R.id.drawer_layout);
+        mDrawerList = (ListView) findViewById(R.id.left_drawer);
+        // init adaptor
+        mStringAdaptor = new ArrayAdapter<String>(this, R.layout.drawer_list_item, mStringOfPlanets);
+        mDrawerList.setAdapter(new NavListViewAdapter(this, Arrays.asList(mStringOfPlanets)));
+        DrawerLayout drawer = (DrawerLayout) findViewById(R.id.drawer_layout);
+        ActionBarDrawerToggle toggle = new ActionBarDrawerToggle(this, drawer, toolbar, R.string.navigation_drawer_open, R.string.navigation_drawer_close);
+        drawer.addDrawerListener(toggle);
+        toggle.setDrawerIndicatorEnabled(true);
+        toggle.syncState();
     }
 
     private GoogleMap googleMap;
