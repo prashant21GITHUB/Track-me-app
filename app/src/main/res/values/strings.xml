@@ -2,6 +2,7 @@
     <string name="app_name">Track me</string>
     <string name="navigation_drawer_open">Drawer opening</string>
     <string name="navigation_drawer_close">Drawer closing</string>
+    <string name="notification_title">Sharing live location</string>
 
     <string-array name="planets_array">
         <item>Mercury</item>

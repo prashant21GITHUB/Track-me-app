@@ -6,6 +6,7 @@
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.READ_CONTACTS" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
     <application
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
@@ -43,6 +44,13 @@
         <activity android:name=".SelectContactsActivity"  android:label="Select contacts"/>
 
         <service android:name=".services.LocationService" />
+
+        <receiver android:name=".services.LocationService$LocationServiceBroadcastReceiver">
+            <!--<intent-filter>-->
+                <!--<action android:name="com.pyb.trackme.RestartLocationService" >-->
+                <!--</action>-->
+            <!--</intent-filter>-->
+        </receiver>
     </application>
 
 </manifest>

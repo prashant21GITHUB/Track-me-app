@@ -1,6 +1,8 @@
 package com.pyb.trackme;
 
 import android.Manifest;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -9,7 +11,6 @@ import android.graphics.Color;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
-import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
 import android.support.v4.app.ActivityCompat;
@@ -24,9 +25,7 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.ArrayAdapter;
-import android.widget.Button;
 import android.widget.CompoundButton;
-import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ListView;
@@ -36,8 +35,6 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.github.nkzawa.emitter.Emitter;
-import com.github.nkzawa.socketio.client.IO;
-import com.github.nkzawa.socketio.client.Socket;
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationCallback;
 import com.google.android.gms.location.LocationRequest;
@@ -60,14 +57,11 @@ import com.google.android.gms.maps.model.RoundCap;
 import com.loopj.android.http.JsonHttpResponseHandler;
 import com.loopj.android.http.RequestParams;
 import com.pyb.trackme.services.LocationService;
-import com.pyb.trackme.socket.IConnectionListener;
-import com.pyb.trackme.socket.SocketManager;
 
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -88,7 +82,7 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
     private LinearLayout sharingContactsLayout;
     private LinearLayout trackingContactsLayout;
     private Switch sharingSwitch;
-    private final SocketManager socketManager = SocketManager.getInstance();
+    private String CHANNEL_ID = "TrackMe_Notification_Channel";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -96,11 +90,11 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
         setContentView(R.layout.home_activity);
         Toolbar toolbar =  findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
-        setLoggedInUserDetails(getIntent().getExtras());
+        readLoggedInUserDetails();
         initializeLocationSharingSwitch();
         intializeDrawerLayout(toolbar);
         initializeMap();
-        connectToServer();
+        createNotificationChannel();
     }
 
     private void initializeMap() {
@@ -144,7 +138,14 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
                         sharingSwitch.setChecked(false);
                         return;
                     }
-                    startService(new Intent(getApplicationContext(), LocationService.class));
+                    Intent service = new Intent(getApplicationContext(), LocationService.class);
+                    service.putExtra("mobile", loggedInMobile);
+                    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
+                        startService(service);
+                    } else {
+                        startForegroundService(service);
+                    }
+
                     liveSharingImage.setVisibility(View.VISIBLE);
                 } else {
                     stopService(new Intent(getApplicationContext(), LocationService.class));
@@ -332,9 +333,12 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
         }
     };
 
-    private void setLoggedInUserDetails(Bundle bundle) {
-        loggedInName = bundle.getString("name", "");
-        loggedInMobile = bundle.getString("mobile", "");
+    private void readLoggedInUserDetails() {
+        SharedPreferences preferences = this.getSharedPreferences(getApplicationInfo().packageName +"_Login", MODE_PRIVATE);
+        String mobile = preferences.getString("Mobile", "");
+        String name = preferences.getString("Name", "");
+        loggedInName = name;
+        loggedInMobile = mobile;
     }
 
 
@@ -382,29 +386,7 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
         googleMap.moveCamera(CameraUpdateFactory.newLatLngZoom(latLng, 18));
     }
 
-    private void connectToServer() {
-        socketManager.connect(new IConnectionListener() {
-            @Override
-            public void onConnect() {
-                socketManager.sendEventMessage("connectedMobile", loggedInMobile);
-                runOnUiThread(new Runnable() {
-                    public void run() {
-                        syncTrackingDetailsFromServer();
-                        Toast.makeText(HomeActivity.this, "Connected to server !!", Toast.LENGTH_SHORT).show();
-                    }
-                });
-            }
 
-            @Override
-            public void onDisconnect() {
-                runOnUiThread(new Runnable() {
-                    public void run() {
-                        Toast.makeText(HomeActivity.this, "You are not connected anymore !!", Toast.LENGTH_SHORT).show();
-                    }
-                });
-            }
-        });
-    }
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
@@ -441,7 +423,22 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
     public void onDestroy() {
         super.onDestroy();
         googleMap.clear();
-        socketManager.disconnect();
+    }
+
+    private void createNotificationChannel() {
+        // Create the NotificationChannel, but only on API 26+ because
+        // the NotificationChannel class is new and not in the support library
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            CharSequence name = "TrackMe";
+            String description = "TrackMe";
+            int importance = NotificationManager.IMPORTANCE_DEFAULT;
+            NotificationChannel channel = new NotificationChannel(CHANNEL_ID, name, importance);
+            channel.setDescription(description);
+            // Register the channel with the system; you can't change the importance
+            // or other notification behaviors after this
+            NotificationManager notificationManager = getSystemService(NotificationManager.class);
+            notificationManager.createNotificationChannel(channel);
+        }
     }
 }
 
