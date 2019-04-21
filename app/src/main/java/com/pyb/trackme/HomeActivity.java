@@ -1,15 +1,22 @@
 package com.pyb.trackme;
 
+import android.Manifest;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
 import android.os.AsyncTask;
+import android.os.Build;
 import android.os.Bundle;
+import android.support.v4.app.ActivityCompat;
+import android.support.v4.content.ContextCompat;
 import android.support.v4.widget.DrawerLayout;
 import android.support.v7.app.ActionBarDrawerToggle;
+import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
@@ -18,7 +25,9 @@ import android.view.MenuItem;
 import android.view.View;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.CompoundButton;
 import android.widget.EditText;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.ProgressBar;
@@ -50,6 +59,9 @@ import com.google.android.gms.maps.model.PolylineOptions;
 import com.google.android.gms.maps.model.RoundCap;
 import com.loopj.android.http.JsonHttpResponseHandler;
 import com.loopj.android.http.RequestParams;
+import com.pyb.trackme.services.LocationService;
+import com.pyb.trackme.socket.IConnectionListener;
+import com.pyb.trackme.socket.SocketManager;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -65,45 +77,18 @@ import cz.msebera.android.httpclient.Header;
 
 public class HomeActivity extends AppCompatActivity implements OnMapReadyCallback {
 
-//    private ListView trackListView;
     private List<String> coordinatesList;
     private String loggedInName;
     private String loggedInMobile;
-    private TextView greetingsView;
-    private EditText mobileNumberToTrack;
-    private Button trackBtn;
     private DrawerLayout mDrawerLayout;
     private ListView sharingListView;
     private ListView trackingListView;
-    private ArrayAdapter mStringAdaptor;
-    private String[] mStringOfPlanets = {"one", "two"};
     private List<String> sharingContactsList;
     private List<String> trackingContactsList;
     private LinearLayout sharingContactsLayout;
     private LinearLayout trackingContactsLayout;
     private Switch sharingSwitch;
-
-    private Socket mSocket;
-    private Emitter.Listener onSocketConnect = new Emitter.Listener() {
-        @Override
-        public void call(Object... args) {
-            Log.d("ok", "ok");
-            onServerConnection();
-        }
-    };
-
-    private void onServerConnection() {
-        mSocket.emit("connectedMobile", loggedInMobile);
-        runOnUiThread(new Runnable() {
-
-            public void run() {
-                Toast.makeText(HomeActivity.this, "Connected to server !!", Toast.LENGTH_SHORT).show();
-//                trackBtn.setEnabled(true);
-            }
-        });
-
-
-    }
+    private final SocketManager socketManager = SocketManager.getInstance();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -112,53 +97,31 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
         Toolbar toolbar =  findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
         setLoggedInUserDetails(getIntent().getExtras());
-        sharingContactsList = new ArrayList<>();
-        trackingContactsList = new ArrayList<>();
-        getTrackingDetailsFromServer();
-//        trackBtn = findViewById(R.id.track_btn);
-        greetingsView = findViewById(R.id.greetings);
-        mobileNumberToTrack = findViewById(R.id.mobile_number_track);
-//        trackListView = findViewById(R.id.track_list_view);
-        coordinatesList = new ArrayList<>();
-        arrayAdapter = new ArrayAdapter<>(
-                HomeActivity.this,
-                R.layout.contact_items_listview,
-                R.id.textView, coordinatesList
-        );
-//        trackListView.setAdapter(arrayAdapter);
+        initializeLocationSharingSwitch();
+        intializeDrawerLayout(toolbar);
+        initializeMap();
+        connectToServer();
+    }
 
-        sharingSwitch = findViewById(R.id.sharing_switch);
-        addListenersToSharingSwitch();
-        greetingsView.setText("Hello " + loggedInName);
-//        trackBtn.setOnClickListener(new View.OnClickListener() {
-//            @Override
-//            public void onClick(View v) {
-////                onTrackBtnClick();
-//            }
-//        });
-        try {
-//            trackBtn.setEnabled(false);
-            mSocket = IO.socket("http://127.0.0.1:3000/");
-            mSocket.on(Socket.EVENT_CONNECT, onSocketConnect);
-            mSocket.connect();
-        } catch (URISyntaxException e) {}
-
+    private void initializeMap() {
         // Get the SupportMapFragment and request notification
         // when the map is ready to be used.
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
                 .findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);
-//        this.locationListener = new HomeActivityLocationListener();
         mFusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
+    }
 
-        mDrawerLayout = (DrawerLayout) findViewById(R.id.drawer_layout);
+
+    private void intializeDrawerLayout(Toolbar toolbar) {
+        sharingContactsList = new ArrayList<>();
+        trackingContactsList = new ArrayList<>();
+        mDrawerLayout = findViewById(R.id.drawer_layout);
         ((TextView)mDrawerLayout.findViewById(R.id.drawer_header)).setText(loggedInName);
         sharingContactsLayout = mDrawerLayout.findViewById(R.id.sharing_contacts_layout);
         trackingContactsLayout = mDrawerLayout.findViewById(R.id.tracking_contacts_layout);
-        sharingListView = (ListView) findViewById(R.id.sharing_list_view);
+        sharingListView =  findViewById(R.id.sharing_list_view);
         trackingListView = findViewById(R.id.tracking_list_view);
-        // init adaptor
-        mStringAdaptor = new ArrayAdapter<String>(this, R.layout.drawer_list_item, mStringOfPlanets);
         sharingListView.setAdapter(new NavListViewAdapter(this, sharingContactsList));
         trackingListView.setAdapter(new NavListViewAdapter(this, trackingContactsList));
         ActionBarDrawerToggle toggle = new ActionBarDrawerToggle(this, mDrawerLayout, toolbar, R.string.navigation_drawer_open, R.string.navigation_drawer_close);
@@ -167,10 +130,89 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
         toggle.syncState();
     }
 
-    private void addListenersToSharingSwitch() {
+    private void initializeLocationSharingSwitch() {
+        sharingSwitch = findViewById(R.id.sharing_switch);
+        final ImageView liveSharingImage = findViewById(R.id.live_sharing_image);
+        sharingSwitch.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+
+            @Override
+            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                if(isChecked) {
+                    if (ContextCompat.checkSelfPermission(HomeActivity.this, Manifest.permission.ACCESS_FINE_LOCATION)
+                            != PackageManager.PERMISSION_GRANTED) {
+                        checkLocationPermission();
+                        sharingSwitch.setChecked(false);
+                        return;
+                    }
+                    startService(new Intent(getApplicationContext(), LocationService.class));
+                    liveSharingImage.setVisibility(View.VISIBLE);
+                } else {
+                    stopService(new Intent(getApplicationContext(), LocationService.class));
+                    liveSharingImage.setVisibility(View.GONE);
+                }
+            }
+        });
     }
 
-    private void getTrackingDetailsFromServer() {
+    public static final int MY_PERMISSIONS_REQUEST_LOCATION = 99;
+    private void checkLocationPermission() {
+        if (android.os.Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            // Should we show an explanation?
+            if (ActivityCompat.shouldShowRequestPermissionRationale(this,
+                    Manifest.permission.ACCESS_FINE_LOCATION)) {
+
+                // Show an explanation to the user *asynchronously* -- don't block
+                // this thread waiting for the user's response! After the user
+                // sees the explanation, try again to request the permission.
+                new AlertDialog.Builder(this)
+                        .setTitle("Location Permission Needed")
+                        .setMessage("This app needs the Location permission, please accept to use location functionality")
+                        .setPositiveButton("OK", new DialogInterface.OnClickListener() {
+                            @Override
+                            public void onClick(DialogInterface dialogInterface, int i) {
+                                //Prompt the user once explanation has been shown
+                                ActivityCompat.requestPermissions(HomeActivity.this,
+                                        new String[]{Manifest.permission.ACCESS_FINE_LOCATION},
+                                        MY_PERMISSIONS_REQUEST_LOCATION );
+                            }
+                        })
+                        .create()
+                        .show();
+
+
+            } else {
+                // No explanation needed, we can request the permission.
+                ActivityCompat.requestPermissions(this,
+                        new String[]{Manifest.permission.ACCESS_FINE_LOCATION},
+                        MY_PERMISSIONS_REQUEST_LOCATION );
+            }
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode,
+                                           String permissions[], int[] grantResults) {
+        switch (requestCode) {
+            case MY_PERMISSIONS_REQUEST_LOCATION: {
+                // If request is cancelled, the result arrays are empty.
+                if (grantResults.length > 0
+                        && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                    sharingSwitch.setChecked(true);
+                    // permission was granted, yay! Do the
+                    // location-related task you need to do.
+
+                } else {
+
+                    // permission denied, boo! Disable the
+                    // functionality that depends on this permission.
+                    Toast.makeText(this, "permission denied", Toast.LENGTH_LONG).show();
+                }
+                return;
+            }
+        }
+    }
+
+    private void syncTrackingDetailsFromServer() {
         RequestParams requestParams = new RequestParams();
         requestParams.setUseJsonStreamer(true);
         requestParams.put("mobile", loggedInMobile);
@@ -180,39 +222,38 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
                 try {
                     if(response.getBoolean("success")) {
                         JSONArray arr = response.getJSONArray("sharingWith");
+                        sharingContactsList.clear();
                         for(int i=0; i < arr.length(); i++) {
                             sharingContactsList.add(arr.getString(i));
                         }
-                        if(sharingContactsList.isEmpty()) {
-                            sharingContactsLayout.setVisibility(View.GONE);
+                        if(!sharingContactsList.isEmpty()) {
+                            sharingContactsLayout.setVisibility(View.VISIBLE);
                         }
                         arr = response.getJSONArray("tracking");
+                        trackingContactsList.clear();
                         for(int i=0; i < arr.length(); i++) {
                             trackingContactsList.add(arr.getString(i));
                         }
-                        if(trackingContactsList.isEmpty()) {
-                            trackingContactsLayout.setVisibility(View.GONE);
+                        if(!trackingContactsList.isEmpty()) {
+                            trackingContactsLayout.setVisibility(View.VISIBLE);
                         }
                         ((ArrayAdapter) trackingListView.getAdapter()).notifyDataSetChanged();
                         ((ArrayAdapter) sharingListView.getAdapter()).notifyDataSetChanged();
                     } else {
-                        Toast.makeText(HomeActivity.this, "Failed to share location, please try after sometime !!", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(HomeActivity.this, "Failed to get tracking details from server, please try after sometime !!", Toast.LENGTH_SHORT).show();
                     }
                 } catch (JSONException e) {
-                    e.printStackTrace();
                 }
 
             }
 
             @Override
             public void onFailure(int statusCode, Header[] headers, Throwable throwable, JSONObject errorResponse) {
-//                progressBar.setVisibility(View.GONE);
                 Toast.makeText(HomeActivity.this, "Internal error, please try after sometime !!", Toast.LENGTH_SHORT).show();
             }
 
             @Override
             public void onFailure(int statusCode, Header[] headers, String responseString, Throwable throwable) {
-//                progressBar.setVisibility(View.GONE);
                 Toast.makeText(HomeActivity.this, "Internal error, please try after sometime !!", Toast.LENGTH_SHORT).show();
             }
 
@@ -267,30 +308,6 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
     private Marker mCurrLocationMarker;
     private Location mLastLocation;
 
-    private void onTrackBtnClick() {
-        String mobileNo = mobileNumberToTrack.getText().toString();
-        if(!ValidationUtils.isValidNumber(mobileNo)) {
-            Toast.makeText(this, "Enter valid mobile number !!", Toast.LENGTH_SHORT).show();
-        } else {
-            if(mSocket.connected()) {
-                if(!mSocket.hasListeners(mobileNo)) {
-                    JSONObject jsonObject = new JSONObject();
-                    try {
-                        jsonObject.put("mobile", mobileNo);
-                    } catch (JSONException e) {
-                        e.printStackTrace();
-                    }
-                    mSocket.on(mobileNo, onNewMessage);
-                    mSocket.emit("subscribe", jsonObject);
-                }
-                Toast.makeText(this, "Request sent !!", Toast.LENGTH_SHORT).show();
-            } else {
-                Toast.makeText(this, "Not connected to server !!", Toast.LENGTH_SHORT).show();
-            }
-        }
-    }
-
-    private ArrayAdapter<String> arrayAdapter;
     private LatLng lastLocation;
 
     private Emitter.Listener onNewMessage = new Emitter.Listener() {
@@ -309,7 +326,7 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
                     } catch (JSONException e) {
                         return;
                     }
-                    new UpdateCurrentTrackingPosition(lat, lng).invoke();
+                    updateCurrentTrackingPosition(lat, lng);
                 }
             });
         }
@@ -320,6 +337,75 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
         loggedInMobile = bundle.getString("mobile", "");
     }
 
+
+
+
+    private void clearSavedLoginDetails() {
+        SharedPreferences preferences = getSharedPreferences(getApplicationInfo().packageName +"_Login", MODE_PRIVATE);
+        SharedPreferences.Editor editor = preferences.edit();
+        editor.putString("Mobile", "");
+        editor.putString("Name", "");
+        editor.commit();
+        this.loggedInName = "";
+        this.loggedInMobile = "";
+    }
+
+    private void updateCurrentTrackingPosition(double lat, double lng) {
+        LatLng latLng = new LatLng(lat, lng);
+        if(lastLocation != null) {
+            PatternItem patternItem = new Dot();
+            Polyline line = googleMap.addPolyline(new PolylineOptions()
+                    .add(lastLocation, latLng)
+                    .width(10)
+                    .endCap(new RoundCap())
+                    .geodesic(true)
+                    .pattern(Arrays.asList(patternItem))
+                    .jointType(JointType.ROUND)
+                    .color(Color.MAGENTA));
+        } else {
+            MarkerOptions markerOptions = new MarkerOptions();
+            markerOptions.position(latLng);
+            markerOptions.title("Start Position");
+            markerOptions.icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_ORANGE));
+            googleMap.addMarker(markerOptions);
+        }
+        lastLocation = latLng;
+        if(mCurrLocationMarker == null) {
+            MarkerOptions markerOptions = new MarkerOptions();
+            markerOptions.position(latLng);
+            markerOptions.title("Current Position");
+            markerOptions.icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_YELLOW));
+            mCurrLocationMarker = googleMap.addMarker(markerOptions);
+        }
+        mCurrLocationMarker.setPosition(latLng);
+        //move map camera
+        googleMap.moveCamera(CameraUpdateFactory.newLatLngZoom(latLng, 18));
+    }
+
+    private void connectToServer() {
+        socketManager.connect(new IConnectionListener() {
+            @Override
+            public void onConnect() {
+                socketManager.sendEventMessage("connectedMobile", loggedInMobile);
+                runOnUiThread(new Runnable() {
+                    public void run() {
+                        syncTrackingDetailsFromServer();
+                        Toast.makeText(HomeActivity.this, "Connected to server !!", Toast.LENGTH_SHORT).show();
+                    }
+                });
+            }
+
+            @Override
+            public void onDisconnect() {
+                runOnUiThread(new Runnable() {
+                    public void run() {
+                        Toast.makeText(HomeActivity.this, "You are not connected anymore !!", Toast.LENGTH_SHORT).show();
+                    }
+                });
+            }
+        });
+    }
+
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         super.onCreateOptionsMenu(menu);
@@ -328,10 +414,10 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
         return true;
     }
 
+    @Override
     public boolean onOptionsItemSelected(MenuItem item) {
 
         switch (item.getItemId()) {
-
             case R.id.logout:
                 clearSavedLoginDetails();
                 Intent intent = new Intent(HomeActivity.this, LoginActivity.class);
@@ -351,85 +437,11 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
         }
     }
 
-
-    private void clearSavedLoginDetails() {
-        SharedPreferences preferences = getSharedPreferences(getApplicationInfo().packageName +"_Login", MODE_PRIVATE);
-        SharedPreferences.Editor editor = preferences.edit();
-        editor.putString("Mobile", "");
-        editor.putString("Name", "");
-        editor.commit();
-        this.loggedInName = "";
-        this.loggedInMobile = "";
-    }
-
     @Override
     public void onDestroy() {
         super.onDestroy();
         googleMap.clear();
-        if(mSocket.connected()) {
-            String mobileNo = mobileNumberToTrack.getText().toString();
-            mSocket.disconnect();
-            mSocket.off(mobileNo, onNewMessage);
-        }
-    }
-
-    private class UpdateCurrentTrackingPosition {
-        private double lat;
-        private double lng;
-
-        public UpdateCurrentTrackingPosition(double lat, double lng) {
-            this.lat = lat;
-            this.lng = lng;
-        }
-
-        public void invoke() {
-            LatLng latLng = new LatLng(lat, lng);
-            if(lastLocation != null) {
-                PatternItem patternItem = new Dot();
-                Polyline line = googleMap.addPolyline(new PolylineOptions()
-                        .add(lastLocation, latLng)
-                        .width(10)
-                        .endCap(new RoundCap())
-                        .geodesic(true)
-                        .pattern(Arrays.asList(patternItem))
-                        .jointType(JointType.ROUND)
-                        .color(Color.MAGENTA));
-            } else {
-                MarkerOptions markerOptions = new MarkerOptions();
-                markerOptions.position(latLng);
-                markerOptions.title("Start Position");
-                markerOptions.icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_ORANGE));
-                googleMap.addMarker(markerOptions);
-            }
-            lastLocation = latLng;
-            if(mCurrLocationMarker == null) {
-                MarkerOptions markerOptions = new MarkerOptions();
-                markerOptions.position(latLng);
-                markerOptions.title("Current Position");
-                markerOptions.icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_YELLOW));
-                mCurrLocationMarker = googleMap.addMarker(markerOptions);
-            }
-            mCurrLocationMarker.setPosition(latLng);
-
-            //move map camera
-            googleMap.moveCamera(CameraUpdateFactory.newLatLngZoom(latLng, 18));
-        }
-    }
-
-    private class ExecuteAsynTask extends AsyncTask<Void, Void, Void> {
-        protected Void doInBackground(Void... mobile) {
-            setLoggedInUserDetails(HomeActivity.this.getIntent().getExtras());
-
-            return null;
-        }
-
-        protected void onProgressUpdate(Void... progress) {
-//            setProgressPercent(progress[0]);
-        }
-
-        protected void onPostExecute(Void result) {
-        }
-
+        socketManager.disconnect();
     }
 }
 

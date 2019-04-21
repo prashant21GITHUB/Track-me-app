@@ -58,13 +58,7 @@ public class LoginActivity extends AppCompatActivity {
                     startActivity(intent);
                 }
             });
-        }
-    }
-
-    @Override
-    public void onResume() {
-        super.onResume();
-        if(isUserLoggedIn) {
+        } else {
             Intent intent = new Intent(this, HomeActivity.class);
             Bundle bundle = new Bundle();
             bundle.putString("name", loggedInName);
@@ -73,6 +67,7 @@ public class LoginActivity extends AppCompatActivity {
             startActivity(intent);
         }
     }
+
 
     private void onSubmitButtonClick() {
         String mobile = mobileNumber.getText().toString();
