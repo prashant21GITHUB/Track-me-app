@@ -151,6 +151,8 @@ public class SelectContactsActivity extends AppCompatActivity {
                                 .setNeutralButton("Ok", new DialogInterface.OnClickListener() {
                                     @Override
                                     public void onClick(DialogInterface dialog, int which) {
+                                        dialog.cancel();
+                                        finish();
                                     }
                                 });
                         AlertDialog alert = builder.create();

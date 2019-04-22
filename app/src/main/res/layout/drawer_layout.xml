@@ -36,7 +36,6 @@
         android:layout_height="wrap_content"
         android:orientation="vertical"
         android:id="@+id/sharing_contacts_layout"
-        android:visibility="gone"
         >
 
         <TextView
@@ -66,7 +65,6 @@
         android:layout_height="wrap_content"
         android:orientation="vertical"
         android:id="@+id/tracking_contacts_layout"
-        android:visibility="gone"
         >
 
         <TextView
@@ -74,7 +72,7 @@
             android:layout_height="wrap_content"
             android:layout_margin="10dp"
             android:fontFamily="@font/aldrich"
-            android:text="Tracking users"
+            android:text="You are tracking"
             android:textColor="#1b4a6d"
             android:textSize="18sp" />
 

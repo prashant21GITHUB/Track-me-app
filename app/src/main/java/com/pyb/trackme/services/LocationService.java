@@ -55,6 +55,7 @@ public class LocationService extends Service {
     private String CHANNEL_DEFAULT_IMPORTANCE = "LocationServiceNotification";
     private int ONGOING_NOTIFICATION_ID = 1343;
     private String CHANNEL_ID = "TrackMe_Notification_Channel";
+    private final String TAG = "TrackMe_LocationService";
 
     @Override
     public IBinder onBind(Intent arg0) {
@@ -81,7 +82,7 @@ public class LocationService extends Service {
             startForeground(ONGOING_NOTIFICATION_ID, builder.build());
         }
         PowerManager pm = (PowerManager) getSystemService(this.POWER_SERVICE);
-        connectToServer();
+//        connectToServer();
         wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "TrackMe_Lock");
         if(!wakeLock.isHeld()) {
             wakeLock.acquire();
@@ -99,7 +100,7 @@ public class LocationService extends Service {
         // Toast.makeText(getApplicationContext(), "Service Created",
         // Toast.LENGTH_SHORT).show();
 
-        Log.d("LocationService", "Service Created");
+        Log.d(TAG, "Service Created");
 
     }
 
@@ -122,7 +123,7 @@ public class LocationService extends Service {
         // TODO Auto-generated method stub
         super.onStartCommand(intent, flags, startId);
 
-        Log.d("LocationService", "Service Started");
+        Log.d(TAG, "Service Started");
 //        loggedInMobile = intent.getExtras().getString("mobile");
         readLoggedInDetailsFromPreferences();
         mFusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
@@ -157,7 +158,7 @@ public class LocationService extends Service {
             if (locationList.size() > 0) {
                 //The last location in the list is the newest
                 Location location = locationList.get(locationList.size() - 1);
-                Log.i("MapsActivity", "Location: " + location.getLatitude() + " " + location.getLongitude());
+                Log.d(TAG, "Location: " + location.getLatitude() + " " + location.getLongitude());
                 //Place current location marker
                 LatLng latLng = new LatLng(location.getLatitude(), location.getLongitude());
                 double lat = location.getLatitude();
@@ -185,7 +186,7 @@ public class LocationService extends Service {
         public void onLocationChanged(Location location) {
             // TODO Auto-generated method stub
 
-            Log.e("Google", "Location Changed");
+            Log.d(TAG, "Location Changed");
 
             if (location == null)
                 return;
@@ -195,8 +196,6 @@ public class LocationService extends Service {
                 JSONObject jsonObject = new JSONObject();
 
                 try {
-                    Log.e("latitude", location.getLatitude() + "");
-                    Log.e("longitude", location.getLongitude() + "");
 
                     jsonObject.put("latitude", location.getLatitude());
                     jsonObject.put("longitude", location.getLongitude());
@@ -241,13 +240,13 @@ public class LocationService extends Service {
         if(wakeLock.isHeld()) {
             wakeLock.release();
         }
-        socketManager.disconnect();
+//        socketManager.disconnect();
         mFusedLocationClient.flushLocations();
         mFusedLocationClient.removeLocationUpdates(mLocationCallback);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             stopForeground(true); //true will remove notification
         }
-        Log.d("LocationService", "Service destroyed");
+        Log.d("TrackMe_LocationService", "Service destroyed");
         super.onDestroy();
     }
 

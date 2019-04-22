@@ -3,6 +3,7 @@ package com.pyb.trackme;
 import android.Manifest;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
+import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -11,6 +12,8 @@ import android.graphics.Color;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.os.Build;
 import android.os.Bundle;
 import android.support.v4.app.ActivityCompat;
@@ -21,6 +24,7 @@ import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
+import android.util.Pair;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -57,6 +61,10 @@ import com.google.android.gms.maps.model.RoundCap;
 import com.loopj.android.http.JsonHttpResponseHandler;
 import com.loopj.android.http.RequestParams;
 import com.pyb.trackme.services.LocationService;
+import com.pyb.trackme.socket.IAckListener;
+import com.pyb.trackme.socket.IConnectionListener;
+import com.pyb.trackme.socket.IEventListener;
+import com.pyb.trackme.socket.SocketManager;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -64,7 +72,9 @@ import org.json.JSONObject;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import cz.msebera.android.httpclient.Header;
 
@@ -83,6 +93,9 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
     private LinearLayout trackingContactsLayout;
     private Switch sharingSwitch;
     private String CHANNEL_ID = "TrackMe_Notification_Channel";
+    private boolean isLocationServiceRunning;
+    private ImageView liveSharingImage;
+    private SocketManager socketManager;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -95,6 +108,41 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
         intializeDrawerLayout(toolbar);
         initializeMap();
         createNotificationChannel();
+        socketManager = SocketManager.getInstance();
+        socketManager.connect(new IConnectionListener() {
+            @Override
+            public void onConnect() {
+                socketManager.sendEventMessage("connectedMobile", loggedInMobile);
+                socketManager.onEvent("publisherAvailable", new IEventListener() {
+                    @Override
+                    public void onEvent(String event, Object[] args) {
+                        String mobile = (String) args[0];
+                        subscribeToContact(mobile);
+                        trackingContactsList.add(mobile);
+                        ((ArrayAdapter) trackingListView.getAdapter()).notifyDataSetChanged();
+                    }
+                });
+            }
+
+            @Override
+            public void onDisconnect() {
+            }
+        });
+    }
+
+    @Override
+    public void onResume(){
+        super.onResume();
+        if(isLocationServiceRunning) {
+            sharingSwitch.setChecked(isLocationServiceRunning);
+            liveSharingImage.setVisibility(View.VISIBLE);
+        }
+    }
+
+    @Override
+    public void onStart() {
+        super.onStart();
+        syncTrackingDetailsFromServer();
     }
 
     private void initializeMap() {
@@ -103,7 +151,6 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
                 .findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);
-        mFusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
     }
 
 
@@ -126,7 +173,9 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
 
     private void initializeLocationSharingSwitch() {
         sharingSwitch = findViewById(R.id.sharing_switch);
-        final ImageView liveSharingImage = findViewById(R.id.live_sharing_image);
+        readLocationServiceRunningStatus();
+        liveSharingImage = findViewById(R.id.live_sharing_image);
+
         sharingSwitch.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
 
             @Override
@@ -138,21 +187,133 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
                         sharingSwitch.setChecked(false);
                         return;
                     }
+                    if(!isLocationServiceOn() || !isConnectedToInternet()) {
+                        sharingSwitch.setChecked(false);
+                        return;
+                    }
+                    if(sharingContactsList.isEmpty()) {
+//                        showAlertDialogToSelectContacts();
+                        sharingSwitch.setChecked(false);
+                        return;
+                    }
+                    if(!socketManager.isConnected()) {
+                        socketManager.connect(new IConnectionListener() {
+                            @Override
+                            public void onConnect() {
+                                socketManager.sendEventMessage("connectedMobile", loggedInMobile);
+                                sendEventToPublishLocationData();
+                            }
+
+                            @Override
+                            public void onDisconnect() {
+                            }
+                        });
+                    } else {
+                        sendEventToPublishLocationData();
+                    }
                     Intent service = new Intent(getApplicationContext(), LocationService.class);
                     service.putExtra("mobile", loggedInMobile);
+                    //TODO Check if service needs to be checked whether it is already running or not
                     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
                         startService(service);
                     } else {
                         startForegroundService(service);
                     }
-
+                    isLocationServiceRunning = true;
                     liveSharingImage.setVisibility(View.VISIBLE);
                 } else {
                     stopService(new Intent(getApplicationContext(), LocationService.class));
+                    isLocationServiceRunning = false;
                     liveSharingImage.setVisibility(View.GONE);
+                    socketManager.sendEventMessage("stopPublish", loggedInMobile);
+                    if(trackingContactsList.isEmpty()) {
+                        socketManager.disconnect();
+                    }
                 }
             }
         });
+    }
+
+    private void sendEventToPublishLocationData() {
+        if(!sharingContactsList.isEmpty()) {
+            JSONArray arr = new JSONArray();
+            arr.put(loggedInMobile);
+            for (String contact : sharingContactsList) {
+                arr.put(contact);
+            }
+            socketManager.sendEventMessage("startPublish", arr);
+        }
+    }
+
+    private void showAlertDialogToSelectContacts() {
+        final AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setMessage("Select contacts to share your location with them")
+                .setCancelable(false)
+                .setPositiveButton("Ok", new DialogInterface.OnClickListener() {
+                    public void onClick(final DialogInterface dialog, final int id) {
+                        openSelectContactsActivity();
+                    }
+                })
+                .setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+                    public void onClick(final DialogInterface dialog, final int id) {
+                        dialog.cancel();
+                    }
+                });
+        final AlertDialog alert = builder.create();
+        alert.show();
+    }
+
+    public boolean isLocationServiceOn() {
+        final LocationManager manager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
+        if (!manager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
+            buildAlertMessageNoGps();
+            return false;
+        }
+        return true;
+    }
+
+    private void buildAlertMessageNoGps() {
+        final AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setMessage("Your GPS seems to be disabled, do you want to enable it?")
+                .setCancelable(false)
+                .setPositiveButton("Yes", new DialogInterface.OnClickListener() {
+                    public void onClick(final DialogInterface dialog, final int id) {
+                        startActivity(new Intent(android.provider.Settings.ACTION_LOCATION_SOURCE_SETTINGS));
+                    }
+                })
+                .setNegativeButton("No", new DialogInterface.OnClickListener() {
+                    public void onClick(final DialogInterface dialog, final int id) {
+                        dialog.cancel();
+                    }
+                });
+        builder.show();
+    }
+
+    private boolean isConnectedToInternet() {
+        ConnectivityManager cm =
+                (ConnectivityManager)getSystemService(Context.CONNECTIVITY_SERVICE);
+
+        NetworkInfo activeNetwork = cm.getActiveNetworkInfo();
+        boolean isConnected = activeNetwork != null &&
+                activeNetwork.isConnectedOrConnecting();
+        if(!isConnected) {
+            buildNoInternetDialog();
+        }
+        return isConnected;
+    }
+
+    private void buildNoInternetDialog() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(HomeActivity.this)
+                .setTitle("Check your internet connection")
+                .setMessage("Please connect to mobile data or wifi !!")
+                .setCancelable(true)
+                .setNeutralButton("OK", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        dialog.cancel();
+                    }
+                });
+        builder.show();
     }
 
     public static final int MY_PERMISSIONS_REQUEST_LOCATION = 99;
@@ -227,19 +388,22 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
                         for(int i=0; i < arr.length(); i++) {
                             sharingContactsList.add(arr.getString(i));
                         }
-                        if(!sharingContactsList.isEmpty()) {
-                            sharingContactsLayout.setVisibility(View.VISIBLE);
-                        }
+//                        if(!sharingContactsList.isEmpty()) {
+//                            sharingContactsLayout.setVisibility(View.VISIBLE);
+//                        }
                         arr = response.getJSONArray("tracking");
                         trackingContactsList.clear();
                         for(int i=0; i < arr.length(); i++) {
                             trackingContactsList.add(arr.getString(i));
                         }
-                        if(!trackingContactsList.isEmpty()) {
-                            trackingContactsLayout.setVisibility(View.VISIBLE);
-                        }
+//                        if(!trackingContactsList.isEmpty()) {
+//                            trackingContactsLayout.setVisibility(View.VISIBLE);
+//                        }
                         ((ArrayAdapter) trackingListView.getAdapter()).notifyDataSetChanged();
                         ((ArrayAdapter) sharingListView.getAdapter()).notifyDataSetChanged();
+                        if(!trackingContactsList.isEmpty()) {
+                            createSocketConnectionForTracking();
+                        }
                     } else {
                         Toast.makeText(HomeActivity.this, "Failed to get tracking details from server, please try after sometime !!", Toast.LENGTH_SHORT).show();
                     }
@@ -261,6 +425,70 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
         });
     }
 
+    private void createSocketConnectionForTracking() {
+        if(!socketManager.isConnected()) {
+            socketManager.connect(new IConnectionListener() {
+                @Override
+                public void onConnect() {
+                    socketManager.sendEventMessage("connectedMobile", loggedInMobile);
+                    subscribeToTrackContacts();
+                }
+
+                @Override
+                public void onDisconnect() {
+
+                }
+            });
+        } else {
+            subscribeToTrackContacts();
+        }
+
+    }
+
+    private void subscribeToTrackContacts() {
+        for (final String contact : trackingContactsList) {
+
+            subscribeToContact(contact);
+        }
+    }
+
+    private void subscribeToContact(final String contact) {
+        socketManager.sendEventMessage("subscribe", contact, new IAckListener() {
+            @Override
+            public void onReply(Object[] args) {
+                JSONObject data = (JSONObject) args[0];
+                try {
+                    if ("connected".equals(data.getString("status"))) {
+                        socketManager.onEvent(contact, new IEventListener() {
+                            @Override
+                            public void onEvent(String event, final Object[] args) {
+                                HomeActivity.this.runOnUiThread(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        JSONObject data = (JSONObject) args[0];
+                                        double lat;
+                                        double lng;
+                                        try {
+                                            lat = data.getDouble("lat");
+                                            lng = data.getDouble("lng");
+
+                                        } catch (JSONException e) {
+                                            return;
+                                        }
+                                        updateCurrentTrackingPosition(contact, lat, lng);
+                                    }
+                                });
+                            }
+                        });
+                    }
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                }
+            }
+        });
+    }
+
+
     private GoogleMap googleMap;
     @Override
     public void onMapReady(GoogleMap map) {
@@ -273,43 +501,6 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
         googleMap.moveCamera(CameraUpdateFactory.newLatLng(india));
 
     }
-
-    private final LocationCallback mLocationCallback = new LocationCallback() {
-        @Override
-        public void onLocationResult(LocationResult locationResult) {
-            List<Location> locationList = locationResult.getLocations();
-            if (locationList.size() > 0) {
-                //The last location in the list is the newest
-                Location location = locationList.get(locationList.size() - 1);
-                Log.i("MapsActivity", "Location: " + location.getLatitude() + " " + location.getLongitude());
-                mLastLocation = location;
-                //Place current location marker
-                LatLng latLng = new LatLng(location.getLatitude(), location.getLongitude());
-                if(mCurrLocationMarker == null) {
-                    MarkerOptions markerOptions = new MarkerOptions();
-                    markerOptions.position(latLng);
-                    markerOptions.title("Current Position");
-                    markerOptions.icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_YELLOW));
-                    mCurrLocationMarker = googleMap.addMarker(markerOptions);
-                }
-                mCurrLocationMarker.setPosition(latLng);
-                //move map camera
-                googleMap.moveCamera(CameraUpdateFactory.newLatLngZoom(latLng, 18));
-            }
-        }
-    };
-
-    private LocationManager locationManager;
-    private LocationListener locationListener;
-    private ProgressBar progressBar;
-    private final int ACCESS_FINE_LOCATION_PERMISSION = 1;
-    private final int INTERNET_PERMISSION = 2;
-    private FusedLocationProviderClient mFusedLocationClient;
-    private LocationRequest mLocationRequest;
-    private Marker mCurrLocationMarker;
-    private Location mLastLocation;
-
-    private LatLng lastLocation;
 
     private Emitter.Listener onNewMessage = new Emitter.Listener() {
         @Override
@@ -327,7 +518,7 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
                     } catch (JSONException e) {
                         return;
                     }
-                    updateCurrentTrackingPosition(lat, lng);
+//                    updateCurrentTrackingPosition(contact, lat, lng);
                 }
             });
         }
@@ -341,9 +532,6 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
         loggedInMobile = mobile;
     }
 
-
-
-
     private void clearSavedLoginDetails() {
         SharedPreferences preferences = getSharedPreferences(getApplicationInfo().packageName +"_Login", MODE_PRIVATE);
         SharedPreferences.Editor editor = preferences.edit();
@@ -354,8 +542,45 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
         this.loggedInMobile = "";
     }
 
-    private void updateCurrentTrackingPosition(double lat, double lng) {
+    private void saveLocationServiceRunningStatus(boolean running) {
+        SharedPreferences preferences = getSharedPreferences(getApplicationInfo().packageName +"_Login", MODE_PRIVATE);
+        SharedPreferences.Editor editor = preferences.edit();
+        editor.putBoolean("LocationServiceRunningStatus", running);
+        editor.commit();
+    }
+
+    private void readLocationServiceRunningStatus() {
+        SharedPreferences preferences = getSharedPreferences(getApplicationInfo().packageName +"_Login", MODE_PRIVATE);
+        isLocationServiceRunning = preferences.getBoolean("LocationServiceRunningStatus", false);
+    }
+
+    private Map<String, LatLng> lastLocationTrackingMap = new HashMap<>();
+    private Map<String, Marker> currLocationMarkerMap = new HashMap<>();
+    private int[] lineColors = {Color.BLUE, Color.MAGENTA, Color.RED,  Color.YELLOW, Color.GREEN, Color.DKGRAY, Color.LTGRAY};
+    private float[] markerIcon = {
+            BitmapDescriptorFactory.HUE_BLUE,
+            BitmapDescriptorFactory.HUE_MAGENTA,
+            BitmapDescriptorFactory.HUE_RED,
+            BitmapDescriptorFactory.HUE_YELLOW,
+            BitmapDescriptorFactory.HUE_GREEN,
+            BitmapDescriptorFactory.HUE_CYAN,
+            BitmapDescriptorFactory.HUE_VIOLET
+    };
+    private Map<String, Pair<Integer, Float>> colorsMap = new HashMap<>();
+    private int nextColor = 0;
+
+    private void updateCurrentTrackingPosition(String trackingContact, double lat, double lng) {
         LatLng latLng = new LatLng(lat, lng);
+        LatLng lastLocation = lastLocationTrackingMap.get(trackingContact);
+        Pair<Integer, Float> lineAndIconColorPair = colorsMap.get(trackingContact);
+        if(lineAndIconColorPair == null) {
+            lineAndIconColorPair = new Pair<>(lineColors[nextColor], markerIcon[nextColor]);
+            nextColor ++;
+            if(nextColor == lineColors.length) {
+                nextColor = 0;
+            }
+            colorsMap.put(trackingContact, lineAndIconColorPair);
+        }
         if(lastLocation != null) {
             PatternItem patternItem = new Dot();
             Polyline line = googleMap.addPolyline(new PolylineOptions()
@@ -365,23 +590,25 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
                     .geodesic(true)
                     .pattern(Arrays.asList(patternItem))
                     .jointType(JointType.ROUND)
-                    .color(Color.MAGENTA));
+                    .color(lineAndIconColorPair.first));
         } else {
             MarkerOptions markerOptions = new MarkerOptions();
             markerOptions.position(latLng);
-            markerOptions.title("Start Position");
+            markerOptions.title(trackingContact + " Start");
             markerOptions.icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_ORANGE));
             googleMap.addMarker(markerOptions);
         }
-        lastLocation = latLng;
-        if(mCurrLocationMarker == null) {
+        lastLocationTrackingMap.put(trackingContact, latLng);
+        Marker currLocationMarker = currLocationMarkerMap.get(trackingContact);
+        if(currLocationMarker == null) {
             MarkerOptions markerOptions = new MarkerOptions();
             markerOptions.position(latLng);
-            markerOptions.title("Current Position");
-            markerOptions.icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_YELLOW));
-            mCurrLocationMarker = googleMap.addMarker(markerOptions);
+            markerOptions.title(trackingContact+ " Current");
+            markerOptions.icon(BitmapDescriptorFactory.defaultMarker(lineAndIconColorPair.second));
+            currLocationMarker = googleMap.addMarker(markerOptions);
+            currLocationMarkerMap.put(trackingContact, currLocationMarker);
         }
-        mCurrLocationMarker.setPosition(latLng);
+        currLocationMarker.setPosition(latLng);
         //move map camera
         googleMap.moveCamera(CameraUpdateFactory.newLatLngZoom(latLng, 18));
     }
@@ -401,17 +628,14 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
 
         switch (item.getItemId()) {
             case R.id.logout:
+                stopService(new Intent(getApplicationContext(), LocationService.class));
+                socketManager.disconnect();
                 clearSavedLoginDetails();
                 Intent intent = new Intent(HomeActivity.this, LoginActivity.class);
                 startActivity(intent);
                 return true;
             case R.id.share_location:
-                Intent i = new Intent(HomeActivity.this, SelectContactsActivity.class);
-                Bundle bundle = new Bundle();
-                bundle.putString("name", loggedInName);
-                bundle.putString("mobile", loggedInMobile);
-                i.putExtras(bundle);
-                startActivity(i);
+                openSelectContactsActivity();
                 return true;
             default:
                 return super.onOptionsItemSelected(item);
@@ -419,9 +643,27 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
         }
     }
 
+    private void openSelectContactsActivity() {
+        Intent i = new Intent(HomeActivity.this, SelectContactsActivity.class);
+        Bundle bundle = new Bundle();
+        bundle.putString("name", loggedInName);
+        bundle.putString("mobile", loggedInMobile);
+        i.putExtras(bundle);
+        startActivity(i);
+    }
+
+    @Override
+    public void onStop() {
+        super.onStop();
+        saveLocationServiceRunningStatus(isLocationServiceRunning);
+    }
+
     @Override
     public void onDestroy() {
         super.onDestroy();
+        if(!isLocationServiceRunning) {
+            socketManager.disconnect();
+        }
         googleMap.clear();
     }
 

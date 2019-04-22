@@ -7,44 +7,52 @@ import com.github.nkzawa.socketio.client.Ack;
 import com.github.nkzawa.socketio.client.IO;
 import com.github.nkzawa.socketio.client.Socket;
 
+import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.net.URISyntaxException;
 import java.util.List;
 
+import static com.pyb.trackme.ServiceURL.BASE_URL;
+
 public class SocketManager {
 
-    private static SocketManager INSTANCE = new SocketManager();
+    private static SocketManager INSTANCE;
     private Socket mSocket;
 
     private SocketManager() {
         try {
-            mSocket = IO.socket("http://127.0.0.1:3000/");
+            mSocket = IO.socket(BASE_URL);
         } catch (URISyntaxException e) {
             Log.e("SocketManager", "Failed to connect to server: " + e);
         }
     }
 
     public static SocketManager getInstance() {
+        if(INSTANCE == null) {
+            INSTANCE = new SocketManager();
+        }
         return INSTANCE;
     }
 
     public void connect(final IConnectionListener connectionListener) {
-        mSocket.on(Socket.EVENT_CONNECT, new Emitter.Listener() {
-            @Override
-            public void call(Object... args) {
-                Log.d("ok", "ok");
-                connectionListener.onConnect();
-            }
-        });
-        mSocket.on(Socket.EVENT_DISCONNECT, new Emitter.Listener() {
-            @Override
-            public void call(Object... args) {
-                Log.d("ok", "ok");
-                connectionListener.onDisconnect();
-            }
-        });
-        mSocket.connect();
+        if(!mSocket.connected()) {
+            mSocket.on(Socket.EVENT_CONNECT, new Emitter.Listener() {
+                @Override
+                public void call(Object... args) {
+                    Log.d("ok", "ok");
+                    connectionListener.onConnect();
+                }
+            });
+            mSocket.on(Socket.EVENT_DISCONNECT, new Emitter.Listener() {
+                @Override
+                public void call(Object... args) {
+                    Log.d("ok", "ok");
+                    connectionListener.onDisconnect();
+                }
+            });
+            mSocket.connect();
+        }
     }
 
     public void disconnect() {
@@ -97,4 +105,7 @@ public class SocketManager {
         return mSocket.connected();
     }
 
+    public void sendEventMessage(String event, JSONArray jsonArray) {
+        mSocket.emit(event, jsonArray);
+    }
 }

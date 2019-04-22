@@ -4,9 +4,9 @@ import com.loopj.android.http.AsyncHttpClient;
 import com.loopj.android.http.AsyncHttpResponseHandler;
 import com.loopj.android.http.RequestParams;
 
-public class APIClient {
+import static com.pyb.trackme.ServiceURL.BASE_URL;
 
-    private static final String BASE_URL = "http://127.0.0.1:3000/";
+public class APIClient {
 
     private static AsyncHttpClient client = new AsyncHttpClient();
 
