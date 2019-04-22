@@ -75,6 +75,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 
 import cz.msebera.android.httpclient.Header;
 
@@ -118,8 +119,15 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
                     public void onEvent(String event, Object[] args) {
                         String mobile = (String) args[0];
                         subscribeToContact(mobile);
-                        trackingContactsList.add(mobile);
-                        ((ArrayAdapter) trackingListView.getAdapter()).notifyDataSetChanged();
+                        if(!trackingContactsList.contains(mobile)) {
+                            trackingContactsList.add(mobile);
+                            runOnUiThread(new Runnable() {
+                                @Override
+                                public void run() {
+                                    ((ArrayAdapter) trackingListView.getAdapter()).notifyDataSetChanged();
+                                }
+                            });
+                        }
                     }
                 });
             }
@@ -502,28 +510,6 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
 
     }
 
-    private Emitter.Listener onNewMessage = new Emitter.Listener() {
-        @Override
-        public void call(final Object... args) {
-            HomeActivity.this.runOnUiThread(new Runnable() {
-                @Override
-                public void run() {
-                    JSONObject data = (JSONObject) args[0];
-                    double lat;
-                    double lng;
-                    try {
-                        lat = data.getDouble("lat");
-                        lng = data.getDouble("lng");
-
-                    } catch (JSONException e) {
-                        return;
-                    }
-//                    updateCurrentTrackingPosition(contact, lat, lng);
-                }
-            });
-        }
-    };
-
     private void readLoggedInUserDetails() {
         SharedPreferences preferences = this.getSharedPreferences(getApplicationInfo().packageName +"_Login", MODE_PRIVATE);
         String mobile = preferences.getString("Mobile", "");
@@ -567,7 +553,7 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
             BitmapDescriptorFactory.HUE_VIOLET
     };
     private Map<String, Pair<Integer, Float>> colorsMap = new HashMap<>();
-    private int nextColor = 0;
+    private int nextColor = new Random().nextInt((6 - 0) + 1) + 0;
 
     private void updateCurrentTrackingPosition(String trackingContact, double lat, double lng) {
         LatLng latLng = new LatLng(lat, lng);

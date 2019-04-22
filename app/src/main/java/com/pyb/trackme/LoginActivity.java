@@ -68,7 +68,13 @@ public class LoginActivity extends AppCompatActivity {
         }
     }
 
-
+    @Override
+    public void onRestart() {
+        super.onRestart();
+        if(isUserLoggedIn) {
+            finish();  //TODO review the logic to destroy login activity
+        }
+    }
     private void onSubmitButtonClick() {
         String mobile = mobileNumber.getText().toString();
         if(!ValidationUtils.isValidNumber(mobile)) {
@@ -102,6 +108,7 @@ public class LoginActivity extends AppCompatActivity {
                 try {
                     if(response.getBoolean("success")) {
                         saveUserLoginDetails(mobileNumber, response.getString("name"));
+                        isUserLoggedIn = true;
                         Intent intent = new Intent(LoginActivity.this, HomeActivity.class);
                         Bundle bundle = new Bundle();
                         bundle.putString("name", response.getString("name"));
