@@ -14,6 +14,7 @@ import android.widget.Toast;
 
 import com.loopj.android.http.JsonHttpResponseHandler;
 import com.loopj.android.http.RequestParams;
+import com.pyb.trackme.db.AppConstants;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -31,11 +32,13 @@ public class LoginActivity extends AppCompatActivity {
     private boolean isUserLoggedIn;
     private String loggedInName;
     private String loggedInMobile;
+    private String LOGIN_PREF_NAME;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.login_activity);
+        LOGIN_PREF_NAME = getApplicationInfo().packageName +"_Login";
         isUserLoggedIn = checkIfUserAlreadyLoggedIn();
         if(!isUserLoggedIn) {
             submitButton = findViewById(R.id.btnLogin);
@@ -152,20 +155,22 @@ public class LoginActivity extends AppCompatActivity {
     }
 
     private boolean checkIfUserAlreadyLoggedIn() {
-        SharedPreferences preferences = this.getSharedPreferences(getApplicationInfo().packageName +"_Login", MODE_PRIVATE);
-        String mobile = preferences.getString("Mobile", "");
-        String name = preferences.getString("Name", "");
+        SharedPreferences preferences = this.getSharedPreferences(LOGIN_PREF_NAME, MODE_PRIVATE);
+        String mobile = preferences.getString(AppConstants.MOBILE_PREF, "");
+        String name = preferences.getString(AppConstants.NAME_PREF, "");
         loggedInName = name;
         loggedInMobile = mobile;
         return !mobile.isEmpty() && !name.isEmpty();
     }
 
     private void saveUserLoginDetails(String mobileNumber, String name) {
-        SharedPreferences preferences = getSharedPreferences(getApplicationInfo().packageName +"_Login", MODE_PRIVATE);
+        SharedPreferences preferences = getSharedPreferences(LOGIN_PREF_NAME, MODE_PRIVATE);
         SharedPreferences.Editor editor = preferences.edit();
-        editor.putString("Mobile", mobileNumber);
-        editor.putString("Name", name);
+        editor.putString(AppConstants.MOBILE_PREF, mobileNumber);
+        editor.putString(AppConstants.NAME_PREF, name);
         editor.commit();
     }
+
+
 
 }

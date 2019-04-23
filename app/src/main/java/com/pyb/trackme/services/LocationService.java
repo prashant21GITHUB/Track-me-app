@@ -21,6 +21,7 @@ import android.os.Bundle;
 import android.os.IBinder;
 import android.os.Looper;
 import android.os.PowerManager;
+import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.NotificationCompat;
 import android.support.v4.content.ContextCompat;
 import android.util.Log;
@@ -56,6 +57,7 @@ public class LocationService extends Service {
     private int ONGOING_NOTIFICATION_ID = 1343;
     private String CHANNEL_ID = "TrackMe_Notification_Channel";
     private final String TAG = "TrackMe_LocationService";
+    private static boolean running;
 
     @Override
     public IBinder onBind(Intent arg0) {
@@ -84,7 +86,7 @@ public class LocationService extends Service {
         PowerManager pm = (PowerManager) getSystemService(this.POWER_SERVICE);
 //        connectToServer();
         wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "TrackMe_Lock");
-        if(!wakeLock.isHeld()) {
+        if (!wakeLock.isHeld()) {
             wakeLock.acquire();
         }
         mLocationRequest = new LocationRequest();
@@ -92,16 +94,8 @@ public class LocationService extends Service {
         mLocationRequest.setFastestInterval(1000);
         mLocationRequest.setSmallestDisplacement(1f);
         mLocationRequest.setPriority(LocationRequest.PRIORITY_BALANCED_POWER_ACCURACY);
-//        IntentFilter filter = new IntentFilter(LOCATION_SERVICE_RESTART_ACTION);
-//        registerReceiver(receiver, filter);
-
-
-
-        // Toast.makeText(getApplicationContext(), "Service Created",
-        // Toast.LENGTH_SHORT).show();
 
         Log.d(TAG, "Service Created");
-
     }
 
     private void connectToServer() {
@@ -136,8 +130,20 @@ public class LocationService extends Service {
             //                                          int[] grantResults)
             // to handle the case where the user grants the permission. See the documentation
             // for ActivityCompat#requestPermissions for more details.
+            running = false;
         } else {
+
             mFusedLocationClient.requestLocationUpdates(mLocationRequest, mLocationCallback, Looper.myLooper());
+            running = true;
+            socketManager.addConnectionListener(new IConnectionListener() {
+                @Override
+                public void onConnect() {
+                }
+
+                @Override
+                public void onDisconnect() {
+                }
+            });
         }
 
         return START_STICKY;
@@ -168,69 +174,14 @@ public class LocationService extends Service {
                     jsonObject.put("mobile", loggedInMobile);
                     jsonObject.put("lat", lat);
                     jsonObject.put("lng", lng);
-                    socketManager.sendEventMessage("publish", jsonObject);
+                    if(socketManager.isConnected()) {
+                        socketManager.sendEventMessage("publish", jsonObject);
+                    }
                 } catch (JSONException e) {
                     e.printStackTrace();
                 }
 
             }
-        }
-    };
-
-
-
-
-    private LocationListener listener = new LocationListener() {
-
-        @Override
-        public void onLocationChanged(Location location) {
-            // TODO Auto-generated method stub
-
-            Log.d(TAG, "Location Changed");
-
-            if (location == null)
-                return;
-
-            if (isConnectingToInternet(getApplicationContext())) {
-                JSONArray jsonArray = new JSONArray();
-                JSONObject jsonObject = new JSONObject();
-
-                try {
-
-                    jsonObject.put("latitude", location.getLatitude());
-                    jsonObject.put("longitude", location.getLongitude());
-
-                    jsonArray.put(jsonObject);
-
-                    Log.e("request", jsonArray.toString());
-//
-//                    new LocationWebService().execute(new String[] {
-//                            Constants.TRACK_URL, jsonArray.toString() });
-                } catch (Exception e) {
-                    // TODO Auto-generated catch block
-                    e.printStackTrace();
-                }
-
-            }
-
-        }
-
-        @Override
-        public void onProviderDisabled(String provider) {
-            // TODO Auto-generated method stub
-
-        }
-
-        @Override
-        public void onProviderEnabled(String provider) {
-            // TODO Auto-generated method stub
-
-        }
-
-        @Override
-        public void onStatusChanged(String provider, int status, Bundle extras) {
-            // TODO Auto-generated method stub
-
         }
     };
 
@@ -243,6 +194,7 @@ public class LocationService extends Service {
 //        socketManager.disconnect();
         mFusedLocationClient.flushLocations();
         mFusedLocationClient.removeLocationUpdates(mLocationCallback);
+        running = false;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             stopForeground(true); //true will remove notification
         }
@@ -250,34 +202,8 @@ public class LocationService extends Service {
         super.onDestroy();
     }
 
-    public static boolean isConnectingToInternet(Context _context) {
-        ConnectivityManager connectivity = (ConnectivityManager) _context
-                .getSystemService(Context.CONNECTIVITY_SERVICE);
-        if (connectivity != null) {
-            NetworkInfo[] info = connectivity.getAllNetworkInfo();
-            if (info != null)
-                for (int i = 0; i < info.length; i++)
-                    if (info[i].getState() == NetworkInfo.State.CONNECTED) {
-                        return true;
-                    }
 
-        }
-        return false;
+    public static boolean isRunning() {
+        return running;
     }
-
-    private final String LOCATION_SERVICE_RESTART_ACTION = "com.pyb.trackme.RestartLocationService";
-    private final LocationServiceBroadcastReceiver receiver = new LocationServiceBroadcastReceiver();
-
-    public class LocationServiceBroadcastReceiver extends BroadcastReceiver {
-
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            String action  = intent.getAction();
-            if(LOCATION_SERVICE_RESTART_ACTION.equals(action)) {
-                startService(new Intent(context, LocationService.class));
-            }
-        }
-    }
-
-
 }

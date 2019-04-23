@@ -11,6 +11,7 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.net.URISyntaxException;
+import java.util.ArrayList;
 import java.util.List;
 
 import static com.pyb.trackme.ServiceURL.BASE_URL;
@@ -19,10 +20,12 @@ public class SocketManager {
 
     private static SocketManager INSTANCE;
     private Socket mSocket;
+    private List<IConnectionListener> connectionListeners;
 
     private SocketManager() {
         try {
             mSocket = IO.socket(BASE_URL);
+            connectionListeners = new ArrayList<>();
         } catch (URISyntaxException e) {
             Log.e("SocketManager", "Failed to connect to server: " + e);
         }
@@ -36,19 +39,24 @@ public class SocketManager {
     }
 
     public void connect(final IConnectionListener connectionListener) {
+        connectionListeners.add(connectionListener);
         if(!mSocket.connected()) {
             mSocket.on(Socket.EVENT_CONNECT, new Emitter.Listener() {
                 @Override
                 public void call(Object... args) {
                     Log.d("ok", "ok");
-                    connectionListener.onConnect();
+                    for(IConnectionListener listener : connectionListeners) {
+                        listener.onConnect();
+                    }
                 }
             });
             mSocket.on(Socket.EVENT_DISCONNECT, new Emitter.Listener() {
                 @Override
                 public void call(Object... args) {
                     Log.d("ok", "ok");
-                    connectionListener.onDisconnect();
+                    for(IConnectionListener listener : connectionListeners) {
+                        listener.onDisconnect();
+                    }
                 }
             });
             mSocket.connect();
@@ -60,6 +68,10 @@ public class SocketManager {
             mSocket.disconnect();
             mSocket.off();
         }
+    }
+
+    public void addConnectionListener(IConnectionListener connectionListener) {
+        connectionListeners.add(connectionListener);
     }
 
     public void onEvent(final String event, final IEventListener listener) {

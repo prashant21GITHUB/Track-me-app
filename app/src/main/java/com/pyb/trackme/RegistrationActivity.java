@@ -13,6 +13,7 @@ import android.widget.Toast;
 
 import com.loopj.android.http.JsonHttpResponseHandler;
 import com.loopj.android.http.RequestParams;
+import com.pyb.trackme.db.AppConstants;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -29,11 +30,13 @@ public class RegistrationActivity extends AppCompatActivity {
     private TextView loginLink;
     private ProgressBar progressBar;
     private final static int EXIT_CODE = 111;
+    private String LOGIN_PREF_NAME;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.registration_activity);
+        LOGIN_PREF_NAME = getApplicationInfo().packageName +"_Login";
         submitButton = findViewById(R.id.reg_btn);
         mobileNumber = findViewById(R.id.mobile_reg);
         password = findViewById(R.id.reg_pwd);
@@ -97,7 +100,7 @@ public class RegistrationActivity extends AppCompatActivity {
                 progressBar.setVisibility(View.GONE);
                 try {
                     if(response.getBoolean("success")) {
-                        saveUserLoginDetails(mobileNumber, password);
+                        saveUserLoginDetails(name, mobileNumber);
                         Intent intent = new Intent(RegistrationActivity.this, HomeActivity.class);
                         Bundle bundle = new Bundle();
                         bundle.putString("name", name);
@@ -138,31 +141,12 @@ public class RegistrationActivity extends AppCompatActivity {
 
     }
 
-    private void saveUserLoginDetails(String mobileNumber, String password) {
-        SharedPreferences preferences = getSharedPreferences(getApplicationInfo().packageName +"_Login", MODE_PRIVATE);
+    private void saveUserLoginDetails(String name, String mobileNumber) {
+        SharedPreferences preferences = getSharedPreferences(LOGIN_PREF_NAME, MODE_PRIVATE);
         SharedPreferences.Editor editor = preferences.edit();
-        editor.putString("Mobile", mobileNumber);
-        editor.putString("Password", password);
+        editor.putString(AppConstants.NAME_PREF, name);
+        editor.putString(AppConstants.MOBILE_PREF, mobileNumber);
         editor.commit();
-    }
-
-    @Override
-    public void onStop() {
-        super.onStop();
-        setResult(EXIT_CODE);
-    }
-
-    @Override
-    public void onDestroy() {
-        super.onDestroy();
-        setResult(EXIT_CODE);
-    }
-
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        if(resultCode == EXIT_CODE){
-            finish();
-        }
     }
 
 }
