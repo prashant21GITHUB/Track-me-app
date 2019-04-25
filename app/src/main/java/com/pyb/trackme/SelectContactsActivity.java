@@ -1,9 +1,12 @@
 package com.pyb.trackme;
 
 import android.app.Activity;
+import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.database.Cursor;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.net.Uri;
 import android.os.Bundle;
 import android.provider.ContactsContract;
@@ -109,8 +112,11 @@ public class SelectContactsActivity extends AppCompatActivity {
         submitBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                shareLocation();
-
+                if(isConnectedToInternet()) {
+                    shareLocation();
+                } else {
+                    buildNoInternetDialog();
+                }
             }
         });
         openContactsBtn.setOnClickListener(new View.OnClickListener() {
@@ -184,7 +190,11 @@ public class SelectContactsActivity extends AppCompatActivity {
     private void onAddButtonClick() {
         String number = inputContact.getText().toString();
         if(ValidationUtils.isValidNumber(number)) {
-            addContactIfRegistered(number, number);
+            if(isConnectedToInternet()) {
+                addContactIfRegistered(number, number);
+            } else {
+
+            }
         } else {
             Toast.makeText(this, "Enter valid mobile number !!", Toast.LENGTH_SHORT).show();
         }
@@ -194,6 +204,33 @@ public class SelectContactsActivity extends AppCompatActivity {
         Intent pickContactIntent = new Intent(Intent.ACTION_PICK, Uri.parse("content://contacts"));
         pickContactIntent.setType(ContactsContract.CommonDataKinds.Phone.CONTENT_TYPE); // Show user only contacts w/ phone numbers
         startActivityForResult(pickContactIntent, REQUEST_CODE_PICK_CONTACT);
+    }
+
+    private boolean isConnectedToInternet() {
+        ConnectivityManager cm =
+                (ConnectivityManager)getSystemService(Context.CONNECTIVITY_SERVICE);
+
+        NetworkInfo activeNetwork = cm.getActiveNetworkInfo();
+        boolean isConnected = activeNetwork != null &&
+                activeNetwork.isConnectedOrConnecting();
+        if(!isConnected) {
+            buildNoInternetDialog();
+        }
+        return isConnected;
+    }
+
+    private void buildNoInternetDialog() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(SelectContactsActivity.this)
+                .setTitle("Check your internet connection")
+                .setMessage("Please connect to mobile data or wifi !!")
+                .setCancelable(true)
+                .setNeutralButton("OK", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        dialog.cancel();
+                    }
+                });
+        builder.show();
     }
 
     @Override
@@ -227,7 +264,11 @@ public class SelectContactsActivity extends AppCompatActivity {
                     if(number.length() > 10) {
                         number = number.substring(number.length() - 10);
                     }
-                    addContactIfRegistered(number, name);
+                    if(isConnectedToInternet()) {
+                        addContactIfRegistered(number, name);
+                    } else {
+                        Toast.makeText(SelectContactsActivity.this, "You are not online !!", Toast.LENGTH_SHORT).show();
+                    }
                 }
         }
         super.onActivityResult(requestCode, resultCode, data);

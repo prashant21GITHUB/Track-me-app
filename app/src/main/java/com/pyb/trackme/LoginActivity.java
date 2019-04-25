@@ -62,7 +62,7 @@ public class LoginActivity extends AppCompatActivity {
                 }
             });
         } else {
-            Intent intent = new Intent(this, HomeActivity.class);
+            Intent intent = new Intent(this, SplashActivity.class);
             Bundle bundle = new Bundle();
             bundle.putString("name", loggedInName);
             bundle.putString("mobile", loggedInMobile);
@@ -112,7 +112,7 @@ public class LoginActivity extends AppCompatActivity {
                     if(response.getBoolean("success")) {
                         saveUserLoginDetails(mobileNumber, response.getString("name"));
                         isUserLoggedIn = true;
-                        Intent intent = new Intent(LoginActivity.this, HomeActivity.class);
+                        Intent intent = new Intent(LoginActivity.this, SplashActivity.class);
                         Bundle bundle = new Bundle();
                         bundle.putString("name", response.getString("name"));
                         bundle.putString("mobile", response.getString("mobile"));

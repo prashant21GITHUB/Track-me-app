@@ -73,8 +73,6 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
     private ListView trackingListView;
     private List<String> sharingContactsList;
     private List<String> trackingContactsList;
-    private LinearLayout sharingContactsLayout;
-    private LinearLayout trackingContactsLayout;
     private Switch sharingSwitch;
     private String CHANNEL_ID = "TrackMe_Notification_Channel";
     private ImageView liveSharingImage;
@@ -88,7 +86,7 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
         LOGIN_PREF_NAME = getApplicationInfo().packageName +"_Login";
         Toolbar toolbar =  findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
-        readLoggedInUserDetails();
+        readLoginAndTrackingDetailsFromIntent(getIntent());
         initializeLocationSharingSwitch();
         intializeDrawerLayout(toolbar);
         initializeMap();
@@ -122,12 +120,12 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
                     });
 
                 });
-                runOnUiThread(new Runnable() {
-                    @Override
-                    public void run() {
-                        Toast.makeText(HomeActivity.this, "You are connected to server !!", Toast.LENGTH_SHORT).show();
-                    }
-                });
+//                runOnUiThread(new Runnable() {
+//                    @Override
+//                    public void run() {
+//                        Toast.makeText(HomeActivity.this, "You are connected to server !!", Toast.LENGTH_SHORT).show();
+//                    }
+//                });
 
             }
 
@@ -136,13 +134,19 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
-                        Toast.makeText(HomeActivity.this, "You are not connected to server !!", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(HomeActivity.this, "You are not online !!", Toast.LENGTH_SHORT).show();
                     }
                 });
             }
         });
     }
 
+    private void readLoginAndTrackingDetailsFromIntent(Intent intent) {
+        loggedInMobile = intent.getStringExtra("mobile");
+        loggedInName = intent.getStringExtra("name");
+        trackingContactsList = intent.getStringArrayListExtra("trackingContactsList");
+        sharingContactsList = intent.getStringArrayListExtra("sharingContactsList");
+    }
 
 
     @Override
@@ -152,15 +156,15 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
             sharingSwitch.setChecked(true);
             liveSharingImage.setVisibility(View.VISIBLE);
         }
-        if(!socketManager.isConnected()) {
-            Toast.makeText(this, "You are not connected to server !!", Toast.LENGTH_SHORT).show();
-        }
+//        if(!socketManager.isConnected()) {
+//            Toast.makeText(this, "You are not connected to server !!", Toast.LENGTH_SHORT).show();
+//        }
     }
 
     @Override
     public void onStart() {
         super.onStart();
-        syncTrackingDetailsFromServer();
+//        syncTrackingDetailsFromServer();
     }
 
     private void initializeMap() {
@@ -173,12 +177,10 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
 
 
     private void intializeDrawerLayout(Toolbar toolbar) {
-        sharingContactsList = new ArrayList<>();
-        trackingContactsList = new ArrayList<>();
+//        sharingContactsList = new ArrayList<>();
+//        trackingContactsList = new ArrayList<>();
         mDrawerLayout = findViewById(R.id.drawer_layout);
         ((TextView)mDrawerLayout.findViewById(R.id.drawer_header)).setText(loggedInName);
-        sharingContactsLayout = mDrawerLayout.findViewById(R.id.sharing_contacts_layout);
-        trackingContactsLayout = mDrawerLayout.findViewById(R.id.tracking_contacts_layout);
         sharingListView =  findViewById(R.id.sharing_list_view);
         trackingListView = findViewById(R.id.tracking_list_view);
         sharingListView.setAdapter(new NavListViewAdapter(this, sharingContactsList));
