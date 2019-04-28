@@ -44,7 +44,7 @@
         <activity android:name=".SelectContactsActivity"  android:label="Select contacts"/>
         <activity android:name=".SplashActivity" />
 
-        <service android:name=".services.LocationService" />
+        <service android:name=".services.TrackMeService" />
 
     </application>
 

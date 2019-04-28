@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.database.Cursor;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
@@ -24,25 +25,29 @@ import android.widget.Toast;
 
 import com.loopj.android.http.JsonHttpResponseHandler;
 import com.loopj.android.http.RequestParams;
+import com.pyb.trackme.db.TrackDetailsDB;
 
 import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.Collections;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 import cz.msebera.android.httpclient.Header;
 
 public class SelectContactsActivity extends AppCompatActivity {
 
     private static final int REQUEST_CODE_PICK_CONTACT = 131;
+    private String LOGIN_PREF_NAME;
     private EditText inputContact;
     private ListView contactsListView;
     private ImageButton openContactsBtn;
     private ImageButton addBtn;
     private Button submitBtn;
-    private List<Pair<String, String>> contactsList;
+    private List<Pair<String, String>> nameAndMobilePairList;
     private CustomListViewAdapter listViewAdapter;
     private ProgressBar progressBar;
     private String loggedInName;
@@ -52,6 +57,7 @@ public class SelectContactsActivity extends AppCompatActivity {
     public void onCreate(Bundle bundle) {
         super.onCreate(bundle);
         setContentView(R.layout.select_contacts_activity);
+        LOGIN_PREF_NAME = getApplicationInfo().packageName +"_Login";
         if(getSupportActionBar() != null) {
             getSupportActionBar().setDisplayHomeAsUpEnabled(true);
         }
@@ -61,9 +67,10 @@ public class SelectContactsActivity extends AppCompatActivity {
         submitBtn = findViewById(R.id.done_button);
         addBtn = findViewById(R.id.add_button);
         progressBar = findViewById(R.id.select_contact_progressBar);
-        contactsList = new ArrayList<>();
+        nameAndMobilePairList = new ArrayList<>();
+        initializeSavedContactListFromPref();
         attachListeners();
-        listViewAdapter = new CustomListViewAdapter(this, contactsList);
+        listViewAdapter = new CustomListViewAdapter(this, nameAndMobilePairList);
         contactsListView.setAdapter(listViewAdapter);
         contactsListView.setOnItemLongClickListener(new AdapterView.OnItemLongClickListener() {
             @Override
@@ -83,12 +90,12 @@ public class SelectContactsActivity extends AppCompatActivity {
     private void showAlertDialog(final int position) {
         AlertDialog.Builder builder = new AlertDialog.Builder(SelectContactsActivity.this)
                 .setTitle("Confirm")
-                .setMessage("Do not share location with " + contactsList.get(position).first +" ?")
+                .setMessage("Do not share location with " + nameAndMobilePairList.get(position).first +" ?")
                 .setCancelable(true)
                 .setPositiveButton("Yes", new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
-                        contactsList.remove(position);
+                        nameAndMobilePairList.remove(position);
                         listViewAdapter.notifyDataSetChanged();
                     }
                 })
@@ -130,21 +137,21 @@ public class SelectContactsActivity extends AppCompatActivity {
     private void shareLocation() {
         RequestParams requestParams = new RequestParams();
         requestParams.setUseJsonStreamer(true);
-        List<String> contacts = new ArrayList<>(contactsList.size());
-        for(Pair<String, String> pair : contactsList) {
-            contacts.add(pair.second);
+        final List<String> contactsList = new ArrayList<>(nameAndMobilePairList.size());
+        for(Pair<String, String> pair : nameAndMobilePairList) {
+            contactsList.add(pair.second);
         }
         requestParams.put("mobile", loggedInMobile);
-        requestParams.put("contacts", contacts);
+        requestParams.put("contacts", contactsList);
         APIClient.put("user/location/share", requestParams, new JsonHttpResponseHandler() {
             @Override
             public void onSuccess(int statusCode, Header[] headers, JSONObject response) {
                 progressBar.setVisibility(View.GONE);
                 try {
                     if(response.getBoolean("success")) {
-                        String[] contacts = new String[contactsList.size()];
+                        String[] contacts = new String[nameAndMobilePairList.size()];
                         int i = 0;
-                        for(Pair<String, String> pair : contactsList) {
+                        for(Pair<String, String> pair : nameAndMobilePairList) {
                             contacts[i++] = pair.first;
                         }
                         AlertDialog.Builder builder = new AlertDialog.Builder(SelectContactsActivity.this)
@@ -163,6 +170,9 @@ public class SelectContactsActivity extends AppCompatActivity {
                                 });
                         AlertDialog alert = builder.create();
                         alert.show();
+                        saveContactListInPref();
+                        TrackDetailsDB.db().clear();
+                        TrackDetailsDB.db().addContactsToShareLocation(contactsList);
                     } else {
                         Toast.makeText(SelectContactsActivity.this, "Failed to share location, please try after sometime !!", Toast.LENGTH_SHORT).show();
                     }
@@ -285,7 +295,7 @@ public class SelectContactsActivity extends AppCompatActivity {
                 progressBar.setVisibility(View.GONE);
                 try {
                     if(response.getBoolean("success")) {
-                        contactsList.add(new Pair<>(name, number));
+                        nameAndMobilePairList.add(new Pair<>(name, number));
                         listViewAdapter.notifyDataSetChanged();
                         Toast.makeText(SelectContactsActivity.this, "Contact added to the list !!", Toast.LENGTH_SHORT).show();
                     } else {
@@ -308,6 +318,36 @@ public class SelectContactsActivity extends AppCompatActivity {
             }
 
         });
+    }
+
+    private void saveContactListInPref() {
+        SharedPreferences preferences = this.getSharedPreferences(LOGIN_PREF_NAME, MODE_PRIVATE);
+        SharedPreferences.Editor editor = preferences.edit();
+        Set<String> contactWithNamesSet = new LinkedHashSet<>();
+        for(Pair<String, String> pair : nameAndMobilePairList) {
+            contactWithNamesSet.add(pair.first + ":" + pair.second);
+        }
+        editor.putStringSet("SavedContactList", contactWithNamesSet);
+        editor.commit();
+    }
+
+    private void initializeSavedContactListFromPref() {
+        SharedPreferences preferences = this.getSharedPreferences(LOGIN_PREF_NAME, MODE_PRIVATE);
+        Set<String> contactWithNamesSet = preferences.getStringSet("SavedContactList", Collections.EMPTY_SET);
+        for(String contact : contactWithNamesSet) {
+            String details[] = contact.split(":");
+            String name = details[0];
+            String mobile = details[1];
+            nameAndMobilePairList.add(new Pair<>(name, mobile));
+        }
+    }
+
+    private void readLoggedInUserDetails() {
+        SharedPreferences preferences = this.getSharedPreferences(LOGIN_PREF_NAME, MODE_PRIVATE);
+        String mobile = preferences.getString("Mobile", "");
+        String name = preferences.getString("Name", "");
+        loggedInName = name;
+        loggedInMobile = mobile;
     }
 
     @Override

@@ -1,31 +1,21 @@
 package com.pyb.trackme.services;
 
 import android.Manifest;
-import android.app.Notification;
-import android.app.NotificationChannel;
-import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
-import android.content.BroadcastReceiver;
-import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.location.Location;
-import android.location.LocationListener;
 import android.location.LocationManager;
-import android.net.ConnectivityManager;
-import android.net.NetworkInfo;
 import android.os.Build;
-import android.os.Bundle;
 import android.os.IBinder;
 import android.os.Looper;
 import android.os.PowerManager;
-import android.support.v4.app.ActivityCompat;
+import android.os.RemoteException;
 import android.support.v4.app.NotificationCompat;
 import android.support.v4.content.ContextCompat;
 import android.util.Log;
-import android.widget.Toast;
 
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationCallback;
@@ -35,6 +25,7 @@ import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.maps.model.LatLng;
 import com.pyb.trackme.HomeActivity;
 import com.pyb.trackme.R;
+import com.pyb.trackme.db.TrackDetailsDB;
 import com.pyb.trackme.socket.IConnectionListener;
 import com.pyb.trackme.socket.SocketManager;
 
@@ -42,9 +33,10 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.util.Collection;
 import java.util.List;
 
-public class LocationService extends Service {
+public class TrackMeService extends Service {
 
     private PowerManager.WakeLock wakeLock;
     private LocationManager locationManager;
@@ -53,38 +45,81 @@ public class LocationService extends Service {
     private String loggedInMobile;
     private final SocketManager socketManager = SocketManager.getInstance();
     private String loggedInName;
-    private String CHANNEL_DEFAULT_IMPORTANCE = "LocationServiceNotification";
     private int ONGOING_NOTIFICATION_ID = 1343;
-    private String CHANNEL_ID = "TrackMe_Notification_Channel";
+    private String NOTIFICATION_CHANNEL_ID = "TrackMe_Notification_Channel";
     private final String TAG = "TrackMe_LocationService";
     private static boolean running;
+    private final ILocationSharingService.Stub locationSharingServiceBinder = new ILocationSharingService.Stub() {
 
+        private boolean isLocationSharingStatus;
+
+        @Override
+        public void startLocationSharing() throws RemoteException {
+            mFusedLocationClient = LocationServices.getFusedLocationProviderClient(getApplicationContext());
+
+            if (ContextCompat.checkSelfPermission(getApplicationContext(), Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED
+                    && ContextCompat.checkSelfPermission(getApplicationContext(), Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                running = false;
+            } else {
+                mFusedLocationClient.requestLocationUpdates(mLocationRequest, mLocationCallback, Looper.myLooper());
+                sendEventToPublishLocationData();
+                isLocationSharingStatus = true;
+                running = true;
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    Intent notificationIntent = new Intent(getApplicationContext(), HomeActivity.class);
+                    PendingIntent pendingIntent =
+                            PendingIntent.getActivity(getApplicationContext(), 0, notificationIntent, 0);
+
+                    NotificationCompat.Builder builder = new NotificationCompat.Builder(getApplicationContext(), NOTIFICATION_CHANNEL_ID)
+                            .setSmallIcon(R.drawable.add_icon)
+                            .setContentIntent(pendingIntent)
+                            .setContentTitle("Sharing live location")
+                            .setContentText("Sharing live location with users")
+                            .setPriority(NotificationCompat.PRIORITY_DEFAULT);
+
+                    startForeground(ONGOING_NOTIFICATION_ID, builder.build());
+                }
+
+            }
+        }
+
+        @Override
+        public void stopLocationSharing() throws RemoteException {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                stopForeground(true); //true will remove notification
+            }
+            socketManager.sendEventMessage("stopPublish", loggedInMobile);
+            mFusedLocationClient.removeLocationUpdates(mLocationCallback);
+            isLocationSharingStatus = false;
+        }
+
+        public boolean isLocationSharingOn() {
+            return isLocationSharingStatus;
+        }
+    };
+
+    private void sendEventToPublishLocationData() {
+        Collection<String> sharingContactsList = TrackDetailsDB.db().getContactsToShareLocation();
+        if(!sharingContactsList.isEmpty()) {
+            JSONArray arr = new JSONArray();
+            arr.put(loggedInMobile);
+            for (String contact : sharingContactsList) {
+                arr.put(contact);
+            }
+            socketManager.sendEventMessage("startPublish", arr);
+        }
+    }
     @Override
     public IBinder onBind(Intent arg0) {
         // TODO Auto-generated method stub
-        return null;
+        return locationSharingServiceBinder;
     }
 
 
     @Override
     public void onCreate() {
         super.onCreate();
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            Intent notificationIntent = new Intent(getApplicationContext(), HomeActivity.class);
-            PendingIntent pendingIntent =
-                    PendingIntent.getActivity(getApplicationContext(), 0, notificationIntent, 0);
-
-            NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID)
-                    .setSmallIcon(R.drawable.add_icon)
-                    .setContentIntent(pendingIntent)
-                    .setContentTitle("Sharing live location")
-                    .setContentText("Sharing live location with users")
-                    .setPriority(NotificationCompat.PRIORITY_DEFAULT);
-
-            startForeground(ONGOING_NOTIFICATION_ID, builder.build());
-        }
         PowerManager pm = (PowerManager) getSystemService(this.POWER_SERVICE);
-//        connectToServer();
         wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "TrackMe_Lock");
         if (!wakeLock.isHeld()) {
             wakeLock.acquire();
@@ -103,7 +138,6 @@ public class LocationService extends Service {
             @Override
             public void onConnect() {
                 socketManager.sendEventMessage("connectedMobile", loggedInMobile);
-                socketManager.sendEventMessage("startPublish", loggedInMobile);
             }
 
             @Override
@@ -114,40 +148,15 @@ public class LocationService extends Service {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        // TODO Auto-generated method stub
         super.onStartCommand(intent, flags, startId);
-
         Log.d(TAG, "Service Started");
-//        loggedInMobile = intent.getExtras().getString("mobile");
         readLoggedInDetailsFromPreferences();
-        mFusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
-
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            // TODO: Consider calling
-            //    ActivityCompat#requestPermissions
-            // here to request the missing permissions, and then overriding
-            //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
-            //                                          int[] grantResults)
-            // to handle the case where the user grants the permission. See the documentation
-            // for ActivityCompat#requestPermissions for more details.
-            running = false;
-        } else {
-
-            mFusedLocationClient.requestLocationUpdates(mLocationRequest, mLocationCallback, Looper.myLooper());
-            running = true;
-            socketManager.addConnectionListener(new IConnectionListener() {
-                @Override
-                public void onConnect() {
-                }
-
-                @Override
-                public void onDisconnect() {
-                }
-            });
+        if(!socketManager.isConnected()) {
+            connectToServer();
         }
-
         return START_STICKY;
     }
+
 
     private void readLoggedInDetailsFromPreferences() {
             SharedPreferences preferences = this.getSharedPreferences(getApplicationInfo().packageName +"_Login", MODE_PRIVATE);
@@ -192,8 +201,8 @@ public class LocationService extends Service {
             wakeLock.release();
         }
 //        socketManager.disconnect();
-        mFusedLocationClient.flushLocations();
-        mFusedLocationClient.removeLocationUpdates(mLocationCallback);
+//        mFusedLocationClient.flushLocations();
+//        mFusedLocationClient.removeLocationUpdates(mLocationCallback);
         running = false;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             stopForeground(true); //true will remove notification

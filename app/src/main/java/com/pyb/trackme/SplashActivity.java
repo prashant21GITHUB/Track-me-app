@@ -10,6 +10,7 @@ import android.widget.Toast;
 
 import com.loopj.android.http.JsonHttpResponseHandler;
 import com.loopj.android.http.RequestParams;
+import com.pyb.trackme.services.TrackMeService;
 import com.pyb.trackme.utils.ConnectionUtils;
 
 import org.json.JSONArray;
@@ -34,19 +35,27 @@ public class SplashActivity extends AppCompatActivity {
         setContentView(R.layout.splash_activity);
         LOGIN_PREF_NAME = getApplicationInfo().packageName +"_Login";
         readLoggedInUserDetails();
+        if(ConnectionUtils.isConnectedToInternet(SplashActivity.this)) {
+            syncTrackingDetailsFromServer();
+        } else {
+            Toast.makeText(SplashActivity.this, "Internet connection is not available !!", Toast.LENGTH_SHORT).show();
+        }
         new Handler().postDelayed(new Runnable() {
 
 
             @Override
             public void run() {
                 // This method will be executed once the timer is over
-                if(ConnectionUtils.isConnectedToInternet(SplashActivity.this)) {
-                    syncTrackingDetailsFromServer();
-
-                } else {
-                    Toast.makeText(SplashActivity.this, "Internet connection is not available !!", Toast.LENGTH_SHORT).show();
+                if(sharingContactsList != null && trackingContactsList != null) {
+                    startService(new Intent(getApplicationContext(), TrackMeService.class));
+                    Intent i = new Intent(SplashActivity.this, HomeActivity.class);
+                    i.putStringArrayListExtra("sharingContactsList", sharingContactsList);
+                    i.putStringArrayListExtra("trackingContactsList", trackingContactsList);
+                    i.putExtra("name", loggedInName);
+                    i.putExtra("mobile", loggedInMobile);
+                    startActivity(i);
+                    finish();
                 }
-
             }
         }, 5000);
     }
@@ -74,13 +83,8 @@ public class SplashActivity extends AppCompatActivity {
                             trackingContactsList.add(arr.getString(i));
                         }
                     }
-                    Intent i = new Intent(SplashActivity.this, HomeActivity.class);
-                    i.putStringArrayListExtra("sharingContactsList", sharingContactsList);
-                    i.putStringArrayListExtra("trackingContactsList", trackingContactsList);
-                    i.putExtra("name", loggedInName);
-                    i.putExtra("mobile", loggedInMobile);
-                    startActivity(i);
-                    finish();
+
+
                 } catch (JSONException e) {
                 }
 
