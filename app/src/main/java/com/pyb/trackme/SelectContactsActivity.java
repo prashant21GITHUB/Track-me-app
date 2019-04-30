@@ -180,7 +180,7 @@ public class SelectContactsActivity extends AppCompatActivity {
                         AlertDialog alert = builder.create();
                         alert.show();
                         saveContactListInPref();
-                        TrackDetailsDB.db().clear();
+//                        TrackDetailsDB.db().clear();
                         TrackDetailsDB.db().addContactsToShareLocation(contactsList);
                     } else {
                         Toast.makeText(SelectContactsActivity.this, "Failed to share location, please try after sometime !!", Toast.LENGTH_SHORT).show();

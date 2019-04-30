@@ -5,11 +5,13 @@ import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.os.Handler;
 import android.support.v7.app.AppCompatActivity;
+import android.view.View;
 import android.widget.ArrayAdapter;
 import android.widget.Toast;
 
 import com.loopj.android.http.JsonHttpResponseHandler;
 import com.loopj.android.http.RequestParams;
+import com.pyb.trackme.db.TrackDetailsDB;
 import com.pyb.trackme.restclient.MobileRequest;
 import com.pyb.trackme.restclient.RestClient;
 import com.pyb.trackme.restclient.TrackingDetailsResponse;
@@ -56,15 +58,18 @@ public class SplashActivity extends AppCompatActivity {
                 if(sharingContactsList != null && trackingContactsList != null) {
                     startService(new Intent(getApplicationContext(), TrackMeService.class));
                     Intent i = new Intent(SplashActivity.this, HomeActivity.class);
-                    i.putStringArrayListExtra("sharingContactsList", sharingContactsList);
-                    i.putStringArrayListExtra("trackingContactsList", trackingContactsList);
+//                    i.putStringArrayListExtra("sharingContactsList", sharingContactsList);
+//                    i.putStringArrayListExtra("trackingContactsList", trackingContactsList);
                     i.putExtra("name", loggedInName);
                     i.putExtra("mobile", loggedInMobile);
                     startActivity(i);
                     finish();
+                } else {
+                    findViewById(R.id.progressBar3).setVisibility(View.GONE);
+                    Toast.makeText(SplashActivity.this, "Internal error, please try after sometime !!", Toast.LENGTH_SHORT).show();
                 }
             }
-        }, 5000);
+        }, 3000);
     }
 
     private void syncTrackingDetailsFromServer() {
@@ -80,6 +85,9 @@ public class SplashActivity extends AppCompatActivity {
                     if(trackingDetailsResponse.isSuccess()) {
                         sharingContactsList = trackingDetailsResponse.getSharingWith();
                         trackingContactsList  = trackingDetailsResponse.getTracking();
+                        TrackDetailsDB.db().clear();
+                        TrackDetailsDB.db().addContactsToShareLocation(sharingContactsList);
+                        TrackDetailsDB.db().addContactsToTrackLocation(trackingContactsList);
                     }
                 } else {
                     Toast.makeText(SplashActivity.this, "Internal error, " + response.message(), Toast.LENGTH_SHORT).show();

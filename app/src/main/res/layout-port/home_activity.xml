@@ -5,15 +5,11 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
-
-
     <RelativeLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         xmlns:android="http://schemas.android.com/apk/res/android"
         xmlns:app="http://schemas.android.com/apk/res-auto">
-
-
 
         <android.support.v7.widget.Toolbar
             android:id="@+id/toolbar"
@@ -23,8 +19,6 @@
             android:background="@color/colorPrimary"
             android:theme="@style/MainMenu"
             app:popupTheme="@style/android:Theme.Holo.Light"/>
-
-
 
         <View
             android:id="@+id/divider2"
@@ -57,25 +51,6 @@
             android:hint="Mobile number to track"
             android:inputType="number" />
 
-        <!--<Button-->
-        <!--android:id="@+id/track_btn"-->
-        <!--android:layout_width="wrap_content"-->
-        <!--android:layout_height="wrap_content"-->
-        <!--android:layout_alignParentEnd="true"-->
-        <!--android:layout_marginTop="10dp"-->
-        <!--android:layout_below="@+id/greetings"-->
-        <!--android:text="GO" />-->
-
-        <!--<TextView-->
-            <!--android:id="@+id/textView2"-->
-            <!--android:layout_width="wrap_content"-->
-            <!--android:layout_height="wrap_content"-->
-            <!--android:layout_below="@+id/greetings"-->
-            <!--android:layout_toRightOf="@+id/divider2"-->
-            <!--android:textSize="20sp"-->
-            <!--android:text="Stop sharing"-->
-           <!--/>-->
-
         <Switch
             android:id="@+id/sharing_switch"
             android:layout_width="wrap_content"
@@ -86,17 +61,6 @@
             android:textSize="20sp"
             android:layout_margin="10dp"/>
 
-
-
-        <!--<ListView-->
-        <!--android:id="@+id/track_list_view"-->
-        <!--android:layout_width="match_parent"-->
-        <!--android:layout_height="match_parent"-->
-        <!--android:layout_toRightOf="@id/divider2"-->
-        <!--android:layout_below="@+id/textView2"-->
-        <!--android:layout_centerHorizontal="true" />-->
-
-
         <fragment xmlns:android="http://schemas.android.com/apk/res/android"
             xmlns:tools="http://schemas.android.com/tools"
             android:id="@+id/map"
@@ -106,74 +70,29 @@
             android:layout_below="@+id/sharing_switch"
             tools:context="com.pyb.trackme.HomeActivity" />
 
-        <ImageView
-            android:id="@+id/live_sharing_image"
-            android:layout_width="45dp"
-            android:layout_height="45dp"
-            android:layout_alignParentEnd="true"
+        <ImageButton
+            android:id="@+id/add_contact_btn"
+            android:layout_width="30dp"
+            android:layout_height="30dp"
+            android:layout_toRightOf="@+id/sharing_switch"
             android:layout_below="@+id/toolbar"
-            android:layout_marginEnd="50dp"
-            android:scaleType="centerInside"
+            android:background="@android:color/transparent"
+            android:scaleType="fitCenter"
+            android:layout_margin="10dp"
+            app:srcCompat="@drawable/add_icon_2" />
+
+        <ProgressBar
+            android:id="@+id/progressBarHomeActivity"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerInParent="true"
             android:visibility="gone"
-            app:srcCompat="@drawable/navigation" />
+            />
 
 
     </RelativeLayout>
 
-    <!-- Container for contents of drawer - use NavigationView to make configuration easier -->
-    <!--<android.support.design.widget.NavigationView-->
-    <!--android:id="@+id/nav_view"-->
-    <!--android:layout_width="wrap_content"-->
-    <!--android:layout_height="match_parent"-->
-    <!--android:layout_gravity="start"-->
-    <!--android:fitsSystemWindows="true" />-->
-
-    <!--<LinearLayout  xmlns:android="http://schemas.android.com/apk/res/android"-->
-        <!--android:layout_width="240dp"-->
-        <!--android:layout_height="match_parent" android:layout_gravity="start"-->
-        <!--android:choiceMode="singleChoice"-->
-        <!--android:divider="@android:color/transparent"-->
-        <!--android:orientation="vertical"-->
-        <!--android:dividerHeight="5dp"-->
-        <!--android:background="#fff"-->
-        <!--&gt;-->
-        <!--<LinearLayout-->
-            <!--android:layout_width="match_parent"-->
-            <!--android:layout_height="wrap_content"-->
-            <!--android:background="#82c59c"-->
-            <!--android:padding="30dp">-->
-            <!--<TextView-->
-                <!--android:layout_width="wrap_content"-->
-                <!--android:layout_height="wrap_content"-->
-                <!--android:textSize="25sp"-->
-                <!--android:textColor="#fdfdfd"-->
-                <!--android:text="Welcome" />-->
-
-        <!--</LinearLayout>-->
-        <!--<TextView-->
-            <!--android:layout_width="wrap_content"-->
-            <!--android:layout_height="wrap_content"-->
-            <!--android:textSize="20sp"-->
-            <!--android:layout_margin="10dp"-->
-            <!--android:text="Currently tracking " />-->
-
-        <!--<ListView android:id="@+id/left_drawer"-->
-            <!--android:layout_width="match_parent"-->
-            <!--android:paddingLeft="10dp"-->
-            <!--android:layout_height="wrap_content"-->
-            <!--android:background="#d1e3f1"-->
-            <!--/>-->
-
-    <!--</LinearLayout>-->
 
     <include layout="@layout/drawer_layout"/>
 
-    <!--<ListView android:id="@+id/left_drawer"-->
-    <!--android:layout_width="240dp"-->
-    <!--android:layout_height="match_parent"-->
-    <!--android:layout_gravity="start"-->
-    <!--android:choiceMode="singleChoice"-->
-    <!--android:divider="@android:color/transparent"-->
-    <!--android:dividerHeight="0dp"-->
-    <!--android:background="#111"/>-->
 </android.support.v4.widget.DrawerLayout>
