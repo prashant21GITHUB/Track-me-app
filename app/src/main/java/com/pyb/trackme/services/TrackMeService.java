@@ -9,6 +9,7 @@ import android.content.pm.PackageManager;
 import android.location.Location;
 import android.location.LocationManager;
 import android.os.Build;
+import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
 import android.os.PowerManager;
@@ -49,38 +50,13 @@ public class TrackMeService extends Service {
     private String NOTIFICATION_CHANNEL_ID = "TrackMe_Notification_Channel";
     private final String TAG = "TrackMe_LocationService";
     private static boolean running;
-    private final ILocationSharingService.Stub locationSharingServiceBinder = new ILocationSharingService.Stub() {
+    private boolean locationSharingStatus;
 
-        private boolean isLocationSharingStatus;
+    private final ILocationSharingService.Stub locationSharingServiceBinder = new ILocationSharingService.Stub() {
 
         @Override
         public void startLocationSharing() throws RemoteException {
-            mFusedLocationClient = LocationServices.getFusedLocationProviderClient(getApplicationContext());
-
-            if (ContextCompat.checkSelfPermission(getApplicationContext(), Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED
-                    && ContextCompat.checkSelfPermission(getApplicationContext(), Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-                running = false;
-            } else {
-                mFusedLocationClient.requestLocationUpdates(mLocationRequest, mLocationCallback, Looper.myLooper());
-                sendEventToPublishLocationData();
-                isLocationSharingStatus = true;
-                running = true;
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    Intent notificationIntent = new Intent(getApplicationContext(), HomeActivity.class);
-                    PendingIntent pendingIntent =
-                            PendingIntent.getActivity(getApplicationContext(), 0, notificationIntent, 0);
-
-                    NotificationCompat.Builder builder = new NotificationCompat.Builder(getApplicationContext(), NOTIFICATION_CHANNEL_ID)
-                            .setSmallIcon(R.drawable.add_icon)
-                            .setContentIntent(pendingIntent)
-                            .setContentTitle("Sharing live location")
-                            .setContentText("Sharing live location with users")
-                            .setPriority(NotificationCompat.PRIORITY_DEFAULT);
-
-                    startForeground(ONGOING_NOTIFICATION_ID, builder.build());
-                }
-
-            }
+            startLocationSharingService();
         }
 
         @Override
@@ -90,13 +66,51 @@ public class TrackMeService extends Service {
             }
             socketManager.sendEventMessage("stopPublish", loggedInMobile);
             mFusedLocationClient.removeLocationUpdates(mLocationCallback);
-            isLocationSharingStatus = false;
+            locationSharingStatus = false;
+            saveLocationSharingStatusInPref(true);
         }
 
+        @Override
         public boolean isLocationSharingOn() {
-            return isLocationSharingStatus;
+            return locationSharingStatus;
+        }
+
+        @Override
+        public void onLogout() {
+            loggedInMobile = null;
+            loggedInName = null;
         }
     };
+
+    private void startLocationSharingService() {
+        mFusedLocationClient = LocationServices.getFusedLocationProviderClient(getApplicationContext());
+
+        if (ContextCompat.checkSelfPermission(getApplicationContext(), Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED
+                && ContextCompat.checkSelfPermission(getApplicationContext(), Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            running = false;
+        } else {
+            mFusedLocationClient.requestLocationUpdates(mLocationRequest, mLocationCallback, Looper.myLooper());
+            sendEventToPublishLocationData();
+            locationSharingStatus = true;
+            saveLocationSharingStatusInPref(true);
+            running = true;
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                Intent notificationIntent = new Intent(getApplicationContext(), HomeActivity.class);
+                PendingIntent pendingIntent =
+                        PendingIntent.getActivity(getApplicationContext(), 0, notificationIntent, 0);
+
+                NotificationCompat.Builder builder = new NotificationCompat.Builder(getApplicationContext(), NOTIFICATION_CHANNEL_ID)
+                        .setSmallIcon(R.drawable.add_icon)
+                        .setContentIntent(pendingIntent)
+                        .setContentTitle("Sharing live location")
+                        .setContentText("Sharing live location with users")
+                        .setPriority(NotificationCompat.PRIORITY_DEFAULT);
+
+                startForeground(ONGOING_NOTIFICATION_ID, builder.build());
+            }
+
+        }
+    }
 
     private void sendEventToPublishLocationData() {
         Collection<String> sharingContactsList = TrackDetailsDB.db().getContactsToShareLocation();
@@ -129,6 +143,10 @@ public class TrackMeService extends Service {
         mLocationRequest.setFastestInterval(1000);
         mLocationRequest.setSmallestDisplacement(1f);
         mLocationRequest.setPriority(LocationRequest.PRIORITY_BALANCED_POWER_ACCURACY);
+        if(loggedInMobile == null || loggedInMobile.isEmpty()) {
+            readLoggedInDetailsAndLocationSharingStatusFromPreferences();
+        }
+
 
         Log.d(TAG, "Service Created");
     }
@@ -138,6 +156,10 @@ public class TrackMeService extends Service {
             @Override
             public void onConnect() {
                 socketManager.sendEventMessage("connectedMobile", loggedInMobile);
+                if(locationSharingStatus) {
+                    Looper.prepare();
+                    new Handler().post(() -> startLocationSharingService());
+                }
             }
 
             @Override
@@ -150,20 +172,31 @@ public class TrackMeService extends Service {
     public int onStartCommand(Intent intent, int flags, int startId) {
         super.onStartCommand(intent, flags, startId);
         Log.d(TAG, "Service Started");
-        readLoggedInDetailsFromPreferences();
-        if(!socketManager.isConnected()) {
-            connectToServer();
+        if(socketManager.isConnected()) {
+            if(locationSharingStatus) {
+                startLocationSharingService();
+            }
+        } else {
+           connectToServer();
         }
         return START_STICKY;
     }
 
 
-    private void readLoggedInDetailsFromPreferences() {
-            SharedPreferences preferences = this.getSharedPreferences(getApplicationInfo().packageName +"_Login", MODE_PRIVATE);
-            String mobile = preferences.getString("Mobile", "");
-            String name = preferences.getString("Name", "");
-            loggedInName = name;
-            loggedInMobile = mobile;
+    private void readLoggedInDetailsAndLocationSharingStatusFromPreferences() {
+        SharedPreferences preferences = this.getSharedPreferences(getApplicationInfo().packageName +"_Login", MODE_PRIVATE);
+        String mobile = preferences.getString("Mobile", "");
+        String name = preferences.getString("Name", "");
+        loggedInName = name;
+        loggedInMobile = mobile;
+        locationSharingStatus = preferences.getBoolean("locationSharingStatus", false);
+    }
+
+    private void saveLocationSharingStatusInPref(boolean status) {
+        SharedPreferences preferences = this.getSharedPreferences(getApplicationInfo().packageName +"_Login", MODE_PRIVATE);
+        SharedPreferences.Editor editor = preferences.edit();
+        editor.putBoolean("locationSharingStatus", status);
+        editor.commit();
     }
 
     private final LocationCallback mLocationCallback = new LocationCallback() {

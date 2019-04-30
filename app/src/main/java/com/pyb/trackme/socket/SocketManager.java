@@ -1,5 +1,6 @@
 package com.pyb.trackme.socket;
 
+import android.os.RemoteException;
 import android.util.Log;
 
 import com.github.nkzawa.emitter.Emitter;
@@ -14,7 +15,7 @@ import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.List;
 
-import static com.pyb.trackme.ServiceURL.BASE_URL;
+import static com.pyb.trackme.restclient.ServiceURL.BASE_URL;
 
 public class SocketManager {
 
@@ -46,7 +47,11 @@ public class SocketManager {
                 public void call(Object... args) {
                     Log.d("ok", "ok");
                     for(IConnectionListener listener : connectionListeners) {
-                        listener.onConnect();
+                        try {
+                            listener.onConnect();
+                        } catch (RemoteException e) {
+                            e.printStackTrace();
+                        }
                     }
                 }
             });

@@ -26,6 +26,12 @@ import android.widget.Toast;
 import com.loopj.android.http.JsonHttpResponseHandler;
 import com.loopj.android.http.RequestParams;
 import com.pyb.trackme.db.TrackDetailsDB;
+import com.pyb.trackme.restclient.LoginServiceClient;
+import com.pyb.trackme.restclient.MobileRequest;
+import com.pyb.trackme.restclient.RestClient;
+import com.pyb.trackme.restclient.ServiceResponse;
+import com.pyb.trackme.restclient.ShareLocationRequest;
+import com.pyb.trackme.restclient.TrackingServiceClient;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -37,6 +43,9 @@ import java.util.List;
 import java.util.Set;
 
 import cz.msebera.android.httpclient.Header;
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
 
 public class SelectContactsActivity extends AppCompatActivity {
 
@@ -135,30 +144,30 @@ public class SelectContactsActivity extends AppCompatActivity {
     }
 
     private void shareLocation() {
-        RequestParams requestParams = new RequestParams();
-        requestParams.setUseJsonStreamer(true);
         final List<String> contactsList = new ArrayList<>(nameAndMobilePairList.size());
         for(Pair<String, String> pair : nameAndMobilePairList) {
             contactsList.add(pair.second);
         }
-        requestParams.put("mobile", loggedInMobile);
-        requestParams.put("contacts", contactsList);
-        APIClient.put("user/location/share", requestParams, new JsonHttpResponseHandler() {
+        TrackingServiceClient client = RestClient.getTrackingServiceClient();
+        Call<ServiceResponse> call = client.addContactsForSharingLocation(new ShareLocationRequest(loggedInMobile, contactsList));
+        call.enqueue(new Callback<ServiceResponse>() {
             @Override
-            public void onSuccess(int statusCode, Header[] headers, JSONObject response) {
-                progressBar.setVisibility(View.GONE);
-                try {
-                    if(response.getBoolean("success")) {
+            public void onResponse(Call<ServiceResponse> call, Response<ServiceResponse> response) {
+                if(response.isSuccessful()) {
+                    progressBar.setVisibility(View.GONE);
+                    ServiceResponse serviceResponse = response.body();
+                    if (serviceResponse.isSuccess()) {
                         String[] contacts = new String[nameAndMobilePairList.size()];
                         int i = 0;
-                        for(Pair<String, String> pair : nameAndMobilePairList) {
+                        for (Pair<String, String> pair : nameAndMobilePairList) {
                             contacts[i++] = pair.first;
                         }
                         AlertDialog.Builder builder = new AlertDialog.Builder(SelectContactsActivity.this)
                                 .setTitle("Shared location with")
                                 .setItems(contacts, new DialogInterface.OnClickListener() {
                                     @Override
-                                    public void onClick(DialogInterface dialog, int which) { }
+                                    public void onClick(DialogInterface dialog, int which) {
+                                    }
                                 })
                                 .setCancelable(true)
                                 .setNeutralButton("Ok", new DialogInterface.OnClickListener() {
@@ -176,26 +185,19 @@ public class SelectContactsActivity extends AppCompatActivity {
                     } else {
                         Toast.makeText(SelectContactsActivity.this, "Failed to share location, please try after sometime !!", Toast.LENGTH_SHORT).show();
                     }
-                } catch (JSONException e) {
-                    e.printStackTrace();
+                } else {
+                    Toast.makeText(SelectContactsActivity.this, "Internal error, " + response.message(), Toast.LENGTH_SHORT).show();
                 }
-
             }
 
             @Override
-            public void onFailure(int statusCode, Header[] headers, Throwable throwable, JSONObject errorResponse) {
+            public void onFailure(Call<ServiceResponse> call, Throwable t) {
                 progressBar.setVisibility(View.GONE);
                 Toast.makeText(SelectContactsActivity.this, "Internal error, please try after sometime !!", Toast.LENGTH_SHORT).show();
             }
-
-            @Override
-            public void onFailure(int statusCode, Header[] headers, String responseString, Throwable throwable) {
-                progressBar.setVisibility(View.GONE);
-                Toast.makeText(SelectContactsActivity.this, "Internal error, please try after sometime !!", Toast.LENGTH_SHORT).show();
-            }
-
         });
     }
+
 
     private void onAddButtonClick() {
         String number = inputContact.getText().toString();
@@ -284,39 +286,31 @@ public class SelectContactsActivity extends AppCompatActivity {
         super.onActivityResult(requestCode, resultCode, data);
     }
 
-    private void addContactIfRegistered(final String number, final String name) {
-        progressBar.setVisibility(View.VISIBLE);
-        RequestParams requestParams = new RequestParams();
-        requestParams.setUseJsonStreamer(true);
-        requestParams.put("mobile", number);
-        APIClient.put("user/isregistered", requestParams, new JsonHttpResponseHandler() {
+    private void addContactIfRegistered(String number, String name) {
+        LoginServiceClient client = RestClient.getLoginServiceClient();
+        Call<ServiceResponse> call = client.isUserRegistered(new MobileRequest(number));
+        call.enqueue(new Callback<ServiceResponse>() {
             @Override
-            public void onSuccess(int statusCode, Header[] headers, JSONObject response) {
+            public void onResponse(Call<ServiceResponse> call, Response<ServiceResponse> response) {
+                if(response.isSuccessful()) {
                 progressBar.setVisibility(View.GONE);
-                try {
-                    if(response.getBoolean("success")) {
+                ServiceResponse serviceResponse = response.body();
+                    if(serviceResponse.isSuccess()) {
                         nameAndMobilePairList.add(new Pair<>(name, number));
                         listViewAdapter.notifyDataSetChanged();
                         Toast.makeText(SelectContactsActivity.this, "Contact added to the list !!", Toast.LENGTH_SHORT).show();
                     } else {
                         Toast.makeText(SelectContactsActivity.this, "Contact is not registered on TrackMe !!", Toast.LENGTH_SHORT).show();
                     }
-                } catch (JSONException e) {
-                    e.printStackTrace();
+                } else {
+                    Toast.makeText(SelectContactsActivity.this, "Internal error, " + response.message(), Toast.LENGTH_SHORT).show();
                 }
-
             }
 
             @Override
-            public void onFailure(int statusCode, Header[] headers, Throwable throwable, JSONObject errorResponse) {
+            public void onFailure(Call<ServiceResponse> call, Throwable t) {
                 progressBar.setVisibility(View.GONE);
             }
-
-            @Override
-            public void onFailure(int statusCode, Header[] headers, String responseString, Throwable throwable) {
-                progressBar.setVisibility(View.GONE);
-            }
-
         });
     }
 

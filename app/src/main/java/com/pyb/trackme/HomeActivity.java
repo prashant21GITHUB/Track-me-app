@@ -416,56 +416,6 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
         }
     }
 
-    private void syncTrackingDetailsFromServer() {
-        RequestParams requestParams = new RequestParams();
-        requestParams.setUseJsonStreamer(true);
-        requestParams.put("mobile", loggedInMobile);
-        APIClient.put("user/track/details", requestParams, new JsonHttpResponseHandler() {
-            @Override
-            public void onSuccess(int statusCode, Header[] headers, JSONObject response) {
-                try {
-                    if(response.getBoolean("success")) {
-                        JSONArray arr = response.getJSONArray("sharingWith");
-                        sharingContactsList.clear();
-                        for(int i=0; i < arr.length(); i++) {
-                            sharingContactsList.add(arr.getString(i));
-                        }
-//                        if(!sharingContactsList.isEmpty()) {
-//                            sharingContactsLayout.setVisibility(View.VISIBLE);
-//                        }
-                        arr = response.getJSONArray("tracking");
-                        trackingContactsList.clear();
-                        for(int i=0; i < arr.length(); i++) {
-                            trackingContactsList.add(arr.getString(i));
-                        }
-//                        if(!trackingContactsList.isEmpty()) {
-//                            trackingContactsLayout.setVisibility(View.VISIBLE);
-//                        }
-                        ((ArrayAdapter) trackingListView.getAdapter()).notifyDataSetChanged();
-                        ((ArrayAdapter) sharingListView.getAdapter()).notifyDataSetChanged();
-                        if(!trackingContactsList.isEmpty()) {
-                            createSocketConnectionForTracking();
-                        }
-                    } else {
-                        Toast.makeText(HomeActivity.this, "Failed to get tracking details from server, please try after sometime !!", Toast.LENGTH_SHORT).show();
-                    }
-                } catch (JSONException e) {
-                }
-
-            }
-
-            @Override
-            public void onFailure(int statusCode, Header[] headers, Throwable throwable, JSONObject errorResponse) {
-                Toast.makeText(HomeActivity.this, "Internal error, please try after sometime !!", Toast.LENGTH_SHORT).show();
-            }
-
-            @Override
-            public void onFailure(int statusCode, Header[] headers, String responseString, Throwable throwable) {
-                Toast.makeText(HomeActivity.this, "Internal error, please try after sometime !!", Toast.LENGTH_SHORT).show();
-            }
-
-        });
-    }
 
     private void createSocketConnectionForTracking() {
         if(socketManager.isConnected()) {

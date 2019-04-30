@@ -10,4 +10,6 @@ interface ILocationSharingService {
     void stopLocationSharing();
 
     boolean isLocationSharingOn();
+
+    void onLogout();
 }

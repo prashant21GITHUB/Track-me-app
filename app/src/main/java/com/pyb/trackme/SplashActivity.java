@@ -10,6 +10,10 @@ import android.widget.Toast;
 
 import com.loopj.android.http.JsonHttpResponseHandler;
 import com.loopj.android.http.RequestParams;
+import com.pyb.trackme.restclient.MobileRequest;
+import com.pyb.trackme.restclient.RestClient;
+import com.pyb.trackme.restclient.TrackingDetailsResponse;
+import com.pyb.trackme.restclient.TrackingServiceClient;
 import com.pyb.trackme.services.TrackMeService;
 import com.pyb.trackme.utils.ConnectionUtils;
 
@@ -21,6 +25,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 import cz.msebera.android.httpclient.Header;
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
 
 public class SplashActivity extends AppCompatActivity {
     private ArrayList<String> sharingContactsList;
@@ -61,45 +68,28 @@ public class SplashActivity extends AppCompatActivity {
     }
 
     private void syncTrackingDetailsFromServer() {
-        RequestParams requestParams = new RequestParams();
-        requestParams.setUseJsonStreamer(true);
-        requestParams.put("mobile", loggedInMobile);
-        APIClient.put("user/track/details", requestParams, new JsonHttpResponseHandler() {
+        TrackingServiceClient client = RestClient.getTrackingServiceClient();
+        Call<TrackingDetailsResponse> call = client.getTrackingDetails(new MobileRequest(loggedInMobile));
+        call.enqueue(new Callback<TrackingDetailsResponse>() {
             @Override
-            public void onSuccess(int statusCode, Header[] headers, JSONObject response) {
+            public void onResponse(Call<TrackingDetailsResponse> call, Response<TrackingDetailsResponse> response) {
                 sharingContactsList = new ArrayList<>();
                 trackingContactsList = new ArrayList<>();
-                try {
-                    if(response.getBoolean("success")) {
-                        JSONArray arr = response.getJSONArray("sharingWith");
-                        for(int i=0; i < arr.length(); i++) {
-                            sharingContactsList.add(arr.getString(i));
-                        }
-//                        if(!sharingContactsList.isEmpty()) {
-//                            sharingContactsLayout.setVisibility(View.VISIBLE);
-//                        }
-                        arr = response.getJSONArray("tracking");
-                        for(int i=0; i < arr.length(); i++) {
-                            trackingContactsList.add(arr.getString(i));
-                        }
+                if(response.isSuccessful()) {
+                    TrackingDetailsResponse trackingDetailsResponse = response.body();
+                    if(trackingDetailsResponse.isSuccess()) {
+                        sharingContactsList = trackingDetailsResponse.getSharingWith();
+                        trackingContactsList  = trackingDetailsResponse.getTracking();
                     }
-
-
-                } catch (JSONException e) {
+                } else {
+                    Toast.makeText(SplashActivity.this, "Internal error, " + response.message(), Toast.LENGTH_SHORT).show();
                 }
-
             }
 
             @Override
-            public void onFailure(int statusCode, Header[] headers, Throwable throwable, JSONObject errorResponse) {
+            public void onFailure(Call<TrackingDetailsResponse> call, Throwable t) {
                 Toast.makeText(SplashActivity.this, "Internal error, please try after sometime !!", Toast.LENGTH_SHORT).show();
             }
-
-            @Override
-            public void onFailure(int statusCode, Header[] headers, String responseString, Throwable throwable) {
-                Toast.makeText(SplashActivity.this, "Internal error, please try after sometime !!", Toast.LENGTH_SHORT).show();
-            }
-
         });
     }
 
