@@ -144,58 +144,58 @@ public class SelectContactsActivity extends AppCompatActivity {
     }
 
     private void shareLocation() {
-        final List<String> contactsList = new ArrayList<>(nameAndMobilePairList.size());
-        for(Pair<String, String> pair : nameAndMobilePairList) {
-            contactsList.add(pair.second);
-        }
-        TrackingServiceClient client = RestClient.getTrackingServiceClient();
-        Call<ServiceResponse> call = client.addContactsForSharingLocation(new ShareLocationRequest(loggedInMobile, contactsList));
-        call.enqueue(new Callback<ServiceResponse>() {
-            @Override
-            public void onResponse(Call<ServiceResponse> call, Response<ServiceResponse> response) {
-                if(response.isSuccessful()) {
-                    progressBar.setVisibility(View.GONE);
-                    ServiceResponse serviceResponse = response.body();
-                    if (serviceResponse.isSuccess()) {
-                        String[] contacts = new String[nameAndMobilePairList.size()];
-                        int i = 0;
-                        for (Pair<String, String> pair : nameAndMobilePairList) {
-                            contacts[i++] = pair.first;
-                        }
-                        AlertDialog.Builder builder = new AlertDialog.Builder(SelectContactsActivity.this)
-                                .setTitle("Shared location with")
-                                .setItems(contacts, new DialogInterface.OnClickListener() {
-                                    @Override
-                                    public void onClick(DialogInterface dialog, int which) {
-                                    }
-                                })
-                                .setCancelable(true)
-                                .setNeutralButton("Ok", new DialogInterface.OnClickListener() {
-                                    @Override
-                                    public void onClick(DialogInterface dialog, int which) {
-                                        dialog.cancel();
-                                        finish();
-                                    }
-                                });
-                        AlertDialog alert = builder.create();
-                        alert.show();
-                        saveContactListInPref();
-//                        TrackDetailsDB.db().clear();
-                        TrackDetailsDB.db().addContactsToShareLocation(contactsList);
-                    } else {
-                        Toast.makeText(SelectContactsActivity.this, "Failed to share location, please try after sometime !!", Toast.LENGTH_SHORT).show();
-                    }
-                } else {
-                    Toast.makeText(SelectContactsActivity.this, "Internal error, " + response.message(), Toast.LENGTH_SHORT).show();
-                }
-            }
-
-            @Override
-            public void onFailure(Call<ServiceResponse> call, Throwable t) {
-                progressBar.setVisibility(View.GONE);
-                Toast.makeText(SelectContactsActivity.this, "Internal error, please try after sometime !!", Toast.LENGTH_SHORT).show();
-            }
-        });
+//        final List<String> contactsList = new ArrayList<>(nameAndMobilePairList.size());
+//        for(Pair<String, String> pair : nameAndMobilePairList) {
+//            contactsList.add(pair.second);
+//        }
+//        TrackingServiceClient client = RestClient.getTrackingServiceClient();
+//        Call<ServiceResponse> call = client.addContactForSharingLocation(new ShareLocationRequest(loggedInMobile, contactsList));
+//        call.enqueue(new Callback<ServiceResponse>() {
+//            @Override
+//            public void onResponse(Call<ServiceResponse> call, Response<ServiceResponse> response) {
+//                if(response.isSuccessful()) {
+//                    progressBar.setVisibility(View.GONE);
+//                    ServiceResponse serviceResponse = response.body();
+//                    if (serviceResponse.isSuccess()) {
+//                        String[] contacts = new String[nameAndMobilePairList.size()];
+//                        int i = 0;
+//                        for (Pair<String, String> pair : nameAndMobilePairList) {
+//                            contacts[i++] = pair.first;
+//                        }
+//                        AlertDialog.Builder builder = new AlertDialog.Builder(SelectContactsActivity.this)
+//                                .setTitle("Shared location with")
+//                                .setItems(contacts, new DialogInterface.OnClickListener() {
+//                                    @Override
+//                                    public void onClick(DialogInterface dialog, int which) {
+//                                    }
+//                                })
+//                                .setCancelable(true)
+//                                .setNeutralButton("Ok", new DialogInterface.OnClickListener() {
+//                                    @Override
+//                                    public void onClick(DialogInterface dialog, int which) {
+//                                        dialog.cancel();
+//                                        finish();
+//                                    }
+//                                });
+//                        AlertDialog alert = builder.create();
+//                        alert.show();
+//                        saveContactListInPref();
+////                        TrackDetailsDB.db().clear();
+//                        TrackDetailsDB.db().addContactsToShareLocation(contactsList);
+//                    } else {
+//                        Toast.makeText(SelectContactsActivity.this, "Failed to share location, please try after sometime !!", Toast.LENGTH_SHORT).show();
+//                    }
+//                } else {
+//                    Toast.makeText(SelectContactsActivity.this, "Internal error, " + response.message(), Toast.LENGTH_SHORT).show();
+//                }
+//            }
+//
+//            @Override
+//            public void onFailure(Call<ServiceResponse> call, Throwable t) {
+//                progressBar.setVisibility(View.GONE);
+//                Toast.makeText(SelectContactsActivity.this, "Internal error, please try after sometime !!", Toast.LENGTH_SHORT).show();
+//            }
+//        });
     }
 
 

@@ -12,12 +12,12 @@ import android.widget.TextView;
 
 import java.util.List;
 
-public class NavListViewAdapter extends ArrayAdapter<String> {
+public class TrackingContactsListViewAdapter extends ArrayAdapter<String> {
 
     private final Context context;
     private final List<String> values;
 
-    public NavListViewAdapter(Context context, List<String> values) {
+    public TrackingContactsListViewAdapter(Context context, List<String> values) {
         super(context, R.layout.drawer_list_item, values);
         this.context = context;
         this.values = values;

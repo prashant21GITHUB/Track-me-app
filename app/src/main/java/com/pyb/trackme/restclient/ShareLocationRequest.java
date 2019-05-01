@@ -1,23 +1,32 @@
 package com.pyb.trackme.restclient;
 
-import java.util.List;
+import com.google.gson.annotations.SerializedName;
 
 public class ShareLocationRequest {
 
-    private final String mobile;
-    private final List<String> contacts;
+    @SerializedName(value = "from_mobile")
+    private final String fromMobile;
+    @SerializedName(value = "to_mobile")
+    private final String toMobile;
+    @SerializedName(value = "to_name")
+    private final String toName;
 
 
-    public ShareLocationRequest(String mobile, List<String> contacts) {
-        this.mobile = mobile;
-        this.contacts = contacts;
+    public ShareLocationRequest(String fromMobile, String toMobile, String toName) {
+        this.fromMobile = fromMobile;
+        this.toMobile = toMobile;
+        this.toName = toName;
     }
 
-    public String getMobile() {
-        return mobile;
+    public String getFromMobile() {
+        return fromMobile;
     }
 
-    public List<String> getContacts() {
-        return contacts;
+    public String getToMobile() {
+        return toMobile;
+    }
+
+    public String getToName() {
+        return toName;
     }
 }

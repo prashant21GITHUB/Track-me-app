@@ -23,6 +23,9 @@ public class TrackDetailsDB {
         sharingContactsList.addAll(contacts);
     }
 
+    public void addContactToShareLocation(String contact) {
+        sharingContactsList.add(contact);
+    }
 
     public void addContactsToTrackLocation(Collection<String> contacts) {
         trackingContactsList.addAll(contacts);

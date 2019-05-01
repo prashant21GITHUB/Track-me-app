@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout   xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:orientation="horizontal" android:layout_width="match_parent"
+    android:layout_height="wrap_content">
+
+    <TextView
+        android:id="@+id/tracked_number"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textAppearance="?android:attr/textAppearanceListItemSmall"
+        android:textColor="#444"
+        android:layout_weight="1"
+        android:foregroundGravity="center"
+        android:textSize="18sp"
+        android:paddingLeft="10dp"
+        android:background="?android:attr/activatedBackgroundIndicator"
+        android:minHeight="?android:attr/listPreferredItemHeightSmall"/>
+
+    <TextView
+        android:id="@+id/tracked_name"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textAppearance="?android:attr/textAppearanceListItemSmall"
+        android:textColor="#444"
+        android:layout_weight="1"
+        android:foregroundGravity="center"
+        android:textSize="18sp"
+        android:paddingLeft="10dp"
+        android:background="?android:attr/activatedBackgroundIndicator"
+        android:minHeight="?android:attr/listPreferredItemHeightSmall"/>
+
+
+    <!--<Switch-->
+    <!--android:id="@+id/switch1"-->
+    <!--android:layout_width="wrap_content"-->
+    <!--android:layout_height="wrap_content"-->
+    <!--android:layout_gravity="center"-->
+    <!--android:layout_marginRight="20dp"-->
+    <!--android:shadowColor="@color/colorPrimary"-->
+    <!--android:theme="@style/SwitchTheme"-->
+    <!--/>-->
+
+
+</LinearLayout>

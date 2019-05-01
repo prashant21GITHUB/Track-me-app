@@ -38,7 +38,6 @@ import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.CompoundButton;
 import android.widget.ImageButton;
-import android.widget.ImageView;
 import android.widget.ListView;
 import android.widget.ProgressBar;
 import android.widget.Switch;
@@ -58,6 +57,8 @@ import com.pyb.trackme.restclient.LoginServiceClient;
 import com.pyb.trackme.restclient.MobileRequest;
 import com.pyb.trackme.restclient.RestClient;
 import com.pyb.trackme.restclient.ServiceResponse;
+import com.pyb.trackme.restclient.ShareLocationRequest;
+import com.pyb.trackme.restclient.TrackingServiceClient;
 import com.pyb.trackme.services.ILocationSharingService;
 import com.pyb.trackme.services.TrackMeService;
 import com.pyb.trackme.socket.IAckListener;
@@ -70,7 +71,6 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -113,8 +113,8 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
         initializeLocationSharingSwitch();
         sharingContactsList = new ArrayList<>();
         trackingContactsList = new ArrayList<>();
-        sharingListViewAdapter = new NavListViewAdapter(this, sharingContactsList);
-        trackingListViewAdapter = new NavListViewAdapter(this, trackingContactsList);
+        sharingListViewAdapter = new TrackingContactsListViewAdapter(this, sharingContactsList);
+        trackingListViewAdapter = new TrackingContactsListViewAdapter(this, trackingContactsList);
         intializeDrawerLayout(toolbar);
         initializeAddContactBtn();
         initializeMap();
@@ -242,8 +242,7 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
                 .setPositiveButton("Yes", new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
-                        sharingContactsList.remove(position);
-                        sharingListViewAdapter.notifyDataSetChanged();
+                        deleteContactFromSharingList(position);
                     }
                 })
                 .setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
@@ -254,6 +253,33 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
                 });
         AlertDialog alert = builder.create();
         alert.show();
+    }
+
+    private void deleteContactFromSharingList(int position) {
+        TrackingServiceClient client = RestClient.getTrackingServiceClient();
+        client.deleteContactFromSharingLocationList(new ShareLocationRequest(loggedInMobile, sharingContactsList.get(position), ""))
+                .enqueue(new Callback<ServiceResponse>() {
+                    @Override
+                    public void onResponse(Call<ServiceResponse> call, Response<ServiceResponse> response) {
+                        if(response.isSuccessful()) {
+                            ServiceResponse serviceResponse = response.body();
+                            if(serviceResponse.isSuccess()) {
+                                sharingContactsList.remove(position);
+                                sharingListViewAdapter.notifyDataSetChanged();
+                                Toast.makeText(HomeActivity.this, "Contact removed from sharing list", Toast.LENGTH_SHORT).show();
+                            } else {
+                                Toast.makeText(HomeActivity.this, "Unable to remove: " + serviceResponse.getMessage(), Toast.LENGTH_SHORT).show();
+                            }
+                        } else {
+                            Toast.makeText(HomeActivity.this, "Internal error, " + response.message(), Toast.LENGTH_SHORT).show();
+                        }
+                    }
+
+                    @Override
+                    public void onFailure(Call<ServiceResponse> call, Throwable t) {
+                        Toast.makeText(HomeActivity.this, "Internal error, " + t.getMessage(), Toast.LENGTH_SHORT).show();
+                    }
+                });
     }
 
     private ServiceConnection locationSharingServiceConnection = new ServiceConnection() {
@@ -783,8 +809,8 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
     }
 
     private void addContactIfRegistered(String number, String name) {
-        LoginServiceClient client = RestClient.getLoginServiceClient();
-        Call<ServiceResponse> call = client.isUserRegistered(new MobileRequest(number));
+        TrackingServiceClient client = RestClient.getTrackingServiceClient();
+        Call<ServiceResponse> call = client.addContactForSharingLocation(new ShareLocationRequest(loggedInMobile, number, name));
         call.enqueue(new Callback<ServiceResponse>() {
             @Override
             public void onResponse(Call<ServiceResponse> call, Response<ServiceResponse> response) {
@@ -794,9 +820,10 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
                     if(serviceResponse.isSuccess()) {
                         sharingContactsList.add(number);
                         sharingListViewAdapter.notifyDataSetChanged();
+                        TrackDetailsDB.db().addContactToShareLocation(number);
                         Toast.makeText(HomeActivity.this, "Contact added to the list !!", Toast.LENGTH_SHORT).show();
                     } else {
-                        Toast.makeText(HomeActivity.this, "Contact is not registered on TrackMe !!", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(HomeActivity.this, serviceResponse.getMessage(), Toast.LENGTH_SHORT).show();
                     }
                 } else {
                     Toast.makeText(HomeActivity.this, "Internal error, " + response.message(), Toast.LENGTH_SHORT).show();
