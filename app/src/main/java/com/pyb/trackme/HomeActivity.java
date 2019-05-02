@@ -107,9 +107,10 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
         super.onCreate(savedInstanceState);
         setContentView(R.layout.home_activity);
         LOGIN_PREF_NAME = getApplicationInfo().packageName +"_Login";
+        readLoggedInUserDetails();
         Toolbar toolbar =  findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
-        readLoginDetailsFromPref(getIntent());
+//        readLoginDetailsFromPref(getIntent());
         initializeLocationSharingSwitch();
         sharingContactsList = new ArrayList<>();
         trackingContactsList = new ArrayList<>();
@@ -120,46 +121,23 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
         initializeMap();
         createNotificationChannel();
         socketManager = SocketManager.getInstance();
-        socketManager.connect(new IConnectionListener() {
+        socketManager.onEvent("publisherAvailable", new IEventListener() {
             @Override
-            public void onConnect() {
-                socketManager.sendEventMessage("connectedMobile", loggedInMobile);
-                socketManager.onEvent("publisherAvailable", new IEventListener() {
-                    @Override
-                    public void onEvent(String event, Object[] args) {
-                        String mobile = (String) args[0];
-                        subscribeToContact(mobile);
-                        if(!trackingContactsList.contains(mobile)) {
-                            trackingContactsList.add(mobile);
-                            runOnUiThread(new Runnable() {
-                                @Override
-                                public void run() {
-                                    ((ArrayAdapter) trackingListView.getAdapter()).notifyDataSetChanged();
-                                    Toast.makeText(HomeActivity.this, mobile + " has just started sharing location !!", Toast.LENGTH_SHORT).show();
-                                }
-                            });
-                        }
-                    }
-                });
-                socketManager.onEvent("publisherNotAvailable", (event, args) -> {
-                    String mobile = (String) args[0];
-                    HomeActivity.this.runOnUiThread(() -> {
-                        updateNotAvailableStatusOnMap(mobile);
-                    });
-
-                });
+            public void onEvent(String event, Object[] args) {
+                String mobile = (String) args[0];
+                subscribeToContact(mobile);
+                if(!trackingContactsList.contains(mobile)) {
+                    trackingContactsList.add(mobile);
+                }
 
             }
+        });
+        socketManager.onEvent("publisherNotAvailable", (event, args) -> {
+            String mobile = (String) args[0];
+            HomeActivity.this.runOnUiThread(() -> {
+                updateNotAvailableStatusOnMap(mobile);
+            });
 
-            @Override
-            public void onDisconnect() {
-                runOnUiThread(new Runnable() {
-                    @Override
-                    public void run() {
-                        Toast.makeText(HomeActivity.this, "You are not online !!", Toast.LENGTH_SHORT).show();
-                    }
-                });
-            }
         });
         bindService(new Intent(getApplicationContext(), TrackMeService.class), locationSharingServiceConnection, Context.BIND_AUTO_CREATE);
         progressBar = findViewById(R.id.progressBarHomeActivity);
@@ -176,12 +154,6 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
             }
         });
     }
-
-    private void readLoginDetailsFromPref(Intent intent) {
-        loggedInMobile = intent.getStringExtra("mobile");
-        loggedInName = intent.getStringExtra("name");
-    }
-
 
     @Override
     public void onResume(){
@@ -203,6 +175,7 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
         sharingContactsList.addAll(TrackDetailsDB.db().getContactsToShareLocation());
         sharingListViewAdapter.notifyDataSetChanged();
         trackingListViewAdapter.notifyDataSetChanged();
+        subscribeToTrackContacts();
     }
 
     private void initializeMap() {
@@ -264,6 +237,15 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
                         if(response.isSuccessful()) {
                             ServiceResponse serviceResponse = response.body();
                             if(serviceResponse.isSuccess()) {
+                                JSONObject jsonObject = new JSONObject();
+                                try {
+                                    jsonObject.put("contactToRemove", sharingContactsList.get(position));
+                                    jsonObject.put("publisher", loggedInMobile);
+                                    socketManager.sendEventMessage("removeContact", jsonObject);
+                                } catch (JSONException e) {
+                                    e.printStackTrace();
+                                }
+                                TrackDetailsDB.db().deleteContactFromSharingList(sharingContactsList.get(position));
                                 sharingContactsList.remove(position);
                                 sharingListViewAdapter.notifyDataSetChanged();
                                 Toast.makeText(HomeActivity.this, "Contact removed from sharing list", Toast.LENGTH_SHORT).show();
@@ -355,43 +337,11 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
                             e.printStackTrace();
                         }
                     }
-//                    socketManager.sendEventMessage("stopPublish", loggedInMobile);
-//                    if(trackingContactsList.isEmpty()) {
-//                        socketManager.disconnect();
-//                    }
                 }
             }
         });
     }
 
-    private void sendEventToPublishLocationData() {
-        if(!sharingContactsList.isEmpty()) {
-            JSONArray arr = new JSONArray();
-            arr.put(loggedInMobile);
-            for (String contact : sharingContactsList) {
-                arr.put(contact);
-            }
-            socketManager.sendEventMessage("startPublish", arr);
-        }
-    }
-
-    private void showAlertDialogToSelectContacts() {
-        final AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setMessage("Select contacts to share your location with them")
-                .setCancelable(false)
-                .setPositiveButton("Ok", new DialogInterface.OnClickListener() {
-                    public void onClick(final DialogInterface dialog, final int id) {
-                        openSelectContactsActivity();
-                    }
-                })
-                .setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
-                    public void onClick(final DialogInterface dialog, final int id) {
-                        dialog.cancel();
-                    }
-                });
-        final AlertDialog alert = builder.create();
-        alert.show();
-    }
 
     public boolean isLocationServiceOn() {
         final LocationManager manager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
@@ -505,15 +455,8 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
     }
 
 
-    private void createSocketConnectionForTracking() {
-        if(socketManager.isConnected()) {
-            subscribeToTrackContacts();
-        }
-    }
-
     private void subscribeToTrackContacts() {
         for (final String contact : trackingContactsList) {
-
             subscribeToContact(contact);
         }
     }
@@ -648,7 +591,7 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
             MarkerOptions markerOptions = new MarkerOptions()
             .position(latLng)
             .title(trackingContact)
-            .snippet("Current location")
+                    .snippet("Current location")
                     .draggable(false).anchor(0.5f, 0.7f)
                     .icon(BitmapDescriptorFactory.defaultMarker(lineAndIconColorPair.second));
 
@@ -656,6 +599,12 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
             currLocationMarker.showInfoWindow();
             currLocationMarkerMap.put(trackingContact, currLocationMarker);
         }
+        if("Not live".equals(currLocationMarker.getSnippet())) {
+            currLocationMarker.hideInfoWindow();
+            currLocationMarker.setSnippet("Current location");
+            currLocationMarker.showInfoWindow();
+        }
+
         currLocationMarker.setPosition(latLng);
         //move map camera
         googleMap.moveCamera(CameraUpdateFactory.newLatLngZoom(latLng, 18));
@@ -711,6 +660,13 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
                 .setNegativeButton("Yes", new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
+                        try {
+                            if(locationSharingService != null) {
+                                locationSharingService.stopLocationSharing();
+                            }
+                        } catch (RemoteException e) {
+                            e.printStackTrace();
+                        }
                         stopService(new Intent(getApplicationContext(), TrackMeService.class));
                         socketManager.disconnect();
                         clearSavedLoginDetails();
@@ -741,9 +697,6 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
     public void onDestroy() {
         super.onDestroy();
         unbindService(locationSharingServiceConnection);
-        if(!TrackMeService.isRunning()) {
-            socketManager.disconnect();
-        }
         googleMap.clear();
     }
 

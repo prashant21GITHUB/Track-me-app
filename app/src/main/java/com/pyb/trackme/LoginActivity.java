@@ -76,6 +76,7 @@ public class LoginActivity extends AppCompatActivity {
             bundle.putString("mobile", loggedInMobile);
             intent.putExtras(bundle);
             startActivity(intent);
+            finish();
         }
     }
 
@@ -126,6 +127,7 @@ public class LoginActivity extends AppCompatActivity {
                         bundle.putString("mobile", mobile);
                         intent.putExtras(bundle);
                         startActivity(intent);
+                        finish();
                     } else {
                         Toast.makeText(getApplicationContext(), loginResponse.getMessage(), Toast.LENGTH_SHORT).show();
                     }

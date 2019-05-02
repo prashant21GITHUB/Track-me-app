@@ -2,8 +2,10 @@ package com.pyb.trackme;
 
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
+import android.support.v4.widget.SwipeRefreshLayout;
 import android.support.v7.app.AppCompatActivity;
 import android.view.View;
 import android.widget.ArrayAdapter;
@@ -37,6 +39,7 @@ public class SplashActivity extends AppCompatActivity {
     private String LOGIN_PREF_NAME;
     private String loggedInName;
     private String loggedInMobile;
+    private SwipeRefreshLayout swipeRefreshLayout;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -44,11 +47,19 @@ public class SplashActivity extends AppCompatActivity {
         setContentView(R.layout.splash_activity);
         LOGIN_PREF_NAME = getApplicationInfo().packageName +"_Login";
         readLoggedInUserDetails();
-        if(ConnectionUtils.isConnectedToInternet(SplashActivity.this)) {
-            syncTrackingDetailsFromServer();
+        getTrackingDetails();
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
+            startService(new Intent(getApplicationContext(), TrackMeService.class));
         } else {
-            Toast.makeText(SplashActivity.this, "Internet connection is not available !!", Toast.LENGTH_SHORT).show();
+            startForegroundService(new Intent(getApplicationContext(), TrackMeService.class));
         }
+        swipeRefreshLayout = findViewById(R.id.splashPullToRefresh);
+        swipeRefreshLayout.setOnRefreshListener(new SwipeRefreshLayout.OnRefreshListener() {
+            @Override
+            public void onRefresh() {
+                getTrackingDetails();
+            }
+        });
         new Handler().postDelayed(new Runnable() {
 
 
@@ -56,20 +67,25 @@ public class SplashActivity extends AppCompatActivity {
             public void run() {
                 // This method will be executed once the timer is over
                 if(sharingContactsList != null && trackingContactsList != null) {
-                    startService(new Intent(getApplicationContext(), TrackMeService.class));
                     Intent i = new Intent(SplashActivity.this, HomeActivity.class);
-//                    i.putStringArrayListExtra("sharingContactsList", sharingContactsList);
-//                    i.putStringArrayListExtra("trackingContactsList", trackingContactsList);
                     i.putExtra("name", loggedInName);
                     i.putExtra("mobile", loggedInMobile);
                     startActivity(i);
                     finish();
                 } else {
                     findViewById(R.id.progressBar3).setVisibility(View.GONE);
-                    Toast.makeText(SplashActivity.this, "Internal error, please try after sometime !!", Toast.LENGTH_SHORT).show();
+//                    Toast.makeText(SplashActivity.this, "Internal error, please try after sometime !!", Toast.LENGTH_SHORT).show();
                 }
             }
         }, 3000);
+    }
+
+    private void getTrackingDetails() {
+        if(ConnectionUtils.isConnectedToInternet(SplashActivity.this)) {
+            syncTrackingDetailsFromServer();
+        } else {
+            Toast.makeText(SplashActivity.this, "Internet connection is not available !!", Toast.LENGTH_SHORT).show();
+        }
     }
 
     private void syncTrackingDetailsFromServer() {
@@ -92,11 +108,13 @@ public class SplashActivity extends AppCompatActivity {
                 } else {
                     Toast.makeText(SplashActivity.this, "Internal error, " + response.message(), Toast.LENGTH_SHORT).show();
                 }
+                swipeRefreshLayout.setRefreshing(false);
             }
 
             @Override
             public void onFailure(Call<TrackingDetailsResponse> call, Throwable t) {
                 Toast.makeText(SplashActivity.this, "Internal error, please try after sometime !!", Toast.LENGTH_SHORT).show();
+                swipeRefreshLayout.setRefreshing(false);
             }
         });
     }

@@ -50,4 +50,12 @@ public class TrackDetailsDB {
     public Set<String> getContactsToTrackLocation() {
         return Collections.unmodifiableSet(trackingContactsList);
     }
+
+    public void deleteContactFromSharingList(String contact) {
+        sharingContactsList.remove(contact);
+    }
+
+    public void deleteContactFromTrackingList(String contact) {
+        trackingContactsList.remove(contact);
+    }
 }
