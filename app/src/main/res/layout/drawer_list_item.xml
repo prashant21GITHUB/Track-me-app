@@ -17,6 +17,26 @@
         android:background="?android:attr/activatedBackgroundIndicator"
         android:minHeight="?android:attr/listPreferredItemHeightSmall"/>
 
+    <ImageView
+        android:id="@+id/live_image"
+        android:layout_width="wrap_content"
+        android:layout_height="20dp"
+        android:layout_weight="1"
+        android:paddingTop="1dp"
+        android:paddingRight="10dp"
+        android:visibility="gone"
+        app:srcCompat="@drawable/live_2" />
+
+
+    <ImageView
+        android:id="@+id/delete_contact_image"
+        android:layout_width="wrap_content"
+        android:layout_height="30dp"
+        android:layout_weight="1"
+        android:paddingTop="2dp"
+        android:paddingRight="10dp"
+        android:visibility="gone"
+        app:srcCompat="@drawable/delete_3" />
 
     <!--<Switch-->
         <!--android:id="@+id/switch1"-->

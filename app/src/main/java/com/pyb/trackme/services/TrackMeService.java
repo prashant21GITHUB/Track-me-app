@@ -65,7 +65,7 @@ public class TrackMeService extends Service {
             socketManager.sendEventMessage("stopPublish", loggedInMobile);
             mFusedLocationClient.removeLocationUpdates(mLocationCallback);
             locationSharingStatus = false;
-//            saveLocationSharingStatusInPref(true);
+            saveLocationSharingStatusInPref(false);
         }
 
         @Override
@@ -91,7 +91,7 @@ public class TrackMeService extends Service {
             mFusedLocationClient = LocationServices.getFusedLocationProviderClient(getApplicationContext());
             mFusedLocationClient.requestLocationUpdates(mLocationRequest, mLocationCallback, Looper.myLooper());
             locationSharingStatus = true;
-//            saveLocationSharingStatusInPref(true);
+            saveLocationSharingStatusInPref(true);
             Log.i(TAG, "resumeSendingLocationUpdates");
         } else {
             Log.e(TAG, "ACCESS_FINE_LOCATION or ACCESS_COARSE_LOCATION permissions not granted");
@@ -155,8 +155,13 @@ public class TrackMeService extends Service {
             public void onConnect() {
                 socketManager.sendEventMessage("connectedMobile", loggedInMobile);
                 if(locationSharingStatus) {
-                    Looper.prepare();
-                    new Handler().post(() -> resumeSendingLocationUpdates());
+//                    new Handler().post(() -> resumeSendingLocationUpdates());
+                    new Handler(Looper.getMainLooper()).post(new Runnable() {
+                        @Override
+                        public void run() {
+                            resumeSendingLocationUpdates();
+                        }
+                    });
                 }
             }
 
@@ -169,7 +174,7 @@ public class TrackMeService extends Service {
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         super.onStartCommand(intent, flags, startId);
-        readLoggedInUserDetails();
+        readLoggedInUserDetailsAndSharingLocationStatus();
         Log.d(TAG, "Service Started");
         if(socketManager.isConnected()) {
             if(locationSharingStatus) {
@@ -182,10 +187,11 @@ public class TrackMeService extends Service {
     }
 
 
-    private void readLoggedInUserDetails() {
+    private void readLoggedInUserDetailsAndSharingLocationStatus() {
         SharedPreferences preferences = this.getSharedPreferences(LOGIN_PREF_NAME, MODE_PRIVATE);
         String mobile = preferences.getString("Mobile", "");
         String name = preferences.getString("Name", "");
+        locationSharingStatus = preferences.getBoolean("locationSharingStatus", false);
         loggedInName = name;
         loggedInMobile = mobile;
     }

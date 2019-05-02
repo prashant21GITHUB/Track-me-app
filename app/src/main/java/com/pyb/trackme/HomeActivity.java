@@ -52,6 +52,7 @@ import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
+import com.google.gson.JsonObject;
 import com.pyb.trackme.db.TrackDetailsDB;
 import com.pyb.trackme.restclient.LoginServiceClient;
 import com.pyb.trackme.restclient.MobileRequest;
@@ -101,6 +102,7 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
     private ArrayAdapter<String> trackingListViewAdapter;
     private ImageButton addContactBtn;
     private ProgressBar progressBar;
+    private IListViewItemViewProvider trackingListViewHolderProvider;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -114,8 +116,9 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
         initializeLocationSharingSwitch();
         sharingContactsList = new ArrayList<>();
         trackingContactsList = new ArrayList<>();
-        sharingListViewAdapter = new TrackingContactsListViewAdapter(this, sharingContactsList);
+        sharingListViewAdapter = new SharingContactListViewAdapter(this, sharingContactsList);
         trackingListViewAdapter = new TrackingContactsListViewAdapter(this, trackingContactsList);
+        trackingListViewHolderProvider = (IListViewItemViewProvider) trackingListViewAdapter;
         intializeDrawerLayout(toolbar);
         initializeAddContactBtn();
         initializeMap();
@@ -125,16 +128,25 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
             @Override
             public void onEvent(String event, Object[] args) {
                 String mobile = (String) args[0];
-                subscribeToContact(mobile);
                 if(!trackingContactsList.contains(mobile)) {
                     trackingContactsList.add(mobile);
+                    TrackDetailsDB.db().addContactToTrackLocation(mobile);
+                    HomeActivity.this.runOnUiThread(() -> {
+                        trackingListViewAdapter.notifyDataSetChanged();
+                    });
                 }
+                subscribeToContact(mobile);
 
             }
         });
         socketManager.onEvent("publisherNotAvailable", (event, args) -> {
             String mobile = (String) args[0];
             HomeActivity.this.runOnUiThread(() -> {
+                ListViewItemHolder viewItemHolder = trackingListViewHolderProvider.getViewHolder(trackingContactsList.indexOf(mobile));
+                if(viewItemHolder != null) {
+                    viewItemHolder.getLiveImage().setVisibility(View.GONE);
+                }
+                trackingListViewAdapter.notifyDataSetChanged();
                 updateNotAvailableStatusOnMap(mobile);
             });
 
@@ -465,9 +477,28 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
         socketManager.sendEventMessage("subscribe", contact, new IAckListener() {
             @Override
             public void onReply(Object[] args) {
-                JSONObject data = (JSONObject) args[0];
+                final JSONObject data = (JSONObject) args[0];
                 try {
                     if ("connected".equals(data.getString("status"))) {
+                        HomeActivity.this.runOnUiThread(() -> {
+                            ListViewItemHolder viewHolder = trackingListViewHolderProvider.getViewHolder(trackingContactsList.indexOf(contact));
+                            if(viewHolder != null) {
+                                viewHolder.getLiveImage().setVisibility(View.VISIBLE);
+                            }
+                            try {
+                                if(data.get("lastLocation") != null) {
+                                    JSONObject lastLocationObj = null;
+
+                                    lastLocationObj = data.getJSONObject("lastLocation");
+                                    updateCurrentTrackingPosition(contact, lastLocationObj.getDouble("lat"),
+                                            lastLocationObj.getDouble("lng"), "Last location");
+
+                                }
+                            } catch (JSONException e) {
+                                e.printStackTrace();
+                            }
+                        });
+
                         socketManager.onEvent(contact, new IEventListener() {
                             @Override
                             public void onEvent(String event, final Object[] args) {
@@ -484,7 +515,7 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
                                         } catch (JSONException e) {
                                             return;
                                         }
-                                        updateCurrentTrackingPosition(contact, lat, lng);
+                                        updateCurrentTrackingPosition(contact, lat, lng, "Current location");
                                     }
                                 });
                             }
@@ -496,7 +527,6 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
             }
         });
     }
-
 
     private GoogleMap googleMap;
     @Override
@@ -556,9 +586,8 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
     private Map<String, Pair<Integer, Float>> colorsMap = new HashMap<>();
     private int nextColor = new Random().nextInt((6 - 0) + 1) + 0;
 
-    private void updateCurrentTrackingPosition(String trackingContact, double lat, double lng) {
+    private void updateCurrentTrackingPosition(String trackingContact, double lat, double lng, String snippet) {
         LatLng latLng = new LatLng(lat, lng);
-        LatLng lastLocation = lastLocationTrackingMap.get(trackingContact);
         Pair<Integer, Float> lineAndIconColorPair = colorsMap.get(trackingContact);
         if(lineAndIconColorPair == null) {
             lineAndIconColorPair = new Pair<>(lineColors[nextColor], markerIcon[nextColor]);
@@ -591,7 +620,6 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
             MarkerOptions markerOptions = new MarkerOptions()
             .position(latLng)
             .title(trackingContact)
-                    .snippet("Current location")
                     .draggable(false).anchor(0.5f, 0.7f)
                     .icon(BitmapDescriptorFactory.defaultMarker(lineAndIconColorPair.second));
 
@@ -599,9 +627,9 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
             currLocationMarker.showInfoWindow();
             currLocationMarkerMap.put(trackingContact, currLocationMarker);
         }
-        if("Not live".equals(currLocationMarker.getSnippet())) {
+        if(!snippet.equals(currLocationMarker.getSnippet())) {
             currLocationMarker.hideInfoWindow();
-            currLocationMarker.setSnippet("Current location");
+            currLocationMarker.setSnippet(snippet);
             currLocationMarker.showInfoWindow();
         }
 
@@ -771,6 +799,15 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
                     progressBar.setVisibility(View.GONE);
                     ServiceResponse serviceResponse = response.body();
                     if(serviceResponse.isSuccess()) {
+                        JSONObject jsonObject = new JSONObject();
+                        try {
+                            jsonObject.put("contactToAdd", number);
+                            jsonObject.put("publisher", loggedInMobile);
+                            socketManager.sendEventMessage("addContact", jsonObject);
+                        } catch (JSONException e) {
+                            e.printStackTrace();
+                        }
+
                         sharingContactsList.add(number);
                         sharingListViewAdapter.notifyDataSetChanged();
                         TrackDetailsDB.db().addContactToShareLocation(number);

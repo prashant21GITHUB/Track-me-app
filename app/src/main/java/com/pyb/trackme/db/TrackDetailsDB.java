@@ -58,4 +58,8 @@ public class TrackDetailsDB {
     public void deleteContactFromTrackingList(String contact) {
         trackingContactsList.remove(contact);
     }
+
+    public void addContactToTrackLocation(String contact) {
+        trackingContactsList.add(contact);
+    }
 }
