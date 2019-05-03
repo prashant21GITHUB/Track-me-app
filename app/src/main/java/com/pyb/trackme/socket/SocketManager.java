@@ -19,7 +19,7 @@ import static com.pyb.trackme.restclient.ServiceURL.BASE_URL;
 
 public class SocketManager {
 
-    private static SocketManager INSTANCE;
+    private SocketManager INSTANCE;
     private Socket mSocket;
     private List<IConnectionListener> connectionListeners;
 
@@ -33,10 +33,7 @@ public class SocketManager {
     }
 
     public static SocketManager getInstance() {
-        if(INSTANCE == null) {
-            INSTANCE = new SocketManager();
-        }
-        return INSTANCE;
+        return new SocketManager();
     }
 
     public void connect(final IConnectionListener connectionListener) {

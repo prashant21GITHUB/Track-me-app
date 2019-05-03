@@ -153,7 +153,7 @@ public class TrackMeService extends Service {
         socketManager.connect(new IConnectionListener() {
             @Override
             public void onConnect() {
-                socketManager.sendEventMessage("connectedMobile", loggedInMobile);
+//                socketManager.sendEventMessage("connectedMobile", loggedInMobile);
                 if(locationSharingStatus) {
 //                    new Handler().post(() -> resumeSendingLocationUpdates());
                     new Handler(Looper.getMainLooper()).post(new Runnable() {

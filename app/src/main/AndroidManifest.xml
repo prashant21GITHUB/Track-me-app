@@ -48,6 +48,7 @@
         <activity android:name=".SplashActivity" />
 
         <service android:name=".services.TrackMeService" />
+        <service android:name=".services.LocationService" />
 
     </application>
 

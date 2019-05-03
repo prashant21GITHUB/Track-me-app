@@ -48,11 +48,11 @@ public class SplashActivity extends AppCompatActivity {
         LOGIN_PREF_NAME = getApplicationInfo().packageName +"_Login";
         readLoggedInUserDetails();
         getTrackingDetails();
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
-            startService(new Intent(getApplicationContext(), TrackMeService.class));
-        } else {
-            startForegroundService(new Intent(getApplicationContext(), TrackMeService.class));
-        }
+//        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
+//            startService(new Intent(getApplicationContext(), TrackMeService.class));
+//        } else {
+//            startForegroundService(new Intent(getApplicationContext(), TrackMeService.class));
+//        }
         swipeRefreshLayout = findViewById(R.id.splashPullToRefresh);
         swipeRefreshLayout.setOnRefreshListener(new SwipeRefreshLayout.OnRefreshListener() {
             @Override
