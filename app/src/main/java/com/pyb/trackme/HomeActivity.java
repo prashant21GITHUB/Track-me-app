@@ -52,10 +52,7 @@ import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
-import com.google.gson.JsonObject;
 import com.pyb.trackme.db.TrackDetailsDB;
-import com.pyb.trackme.restclient.LoginServiceClient;
-import com.pyb.trackme.restclient.MobileRequest;
 import com.pyb.trackme.restclient.RestClient;
 import com.pyb.trackme.restclient.ServiceResponse;
 import com.pyb.trackme.restclient.ShareLocationRequest;
@@ -63,11 +60,9 @@ import com.pyb.trackme.restclient.TrackingServiceClient;
 import com.pyb.trackme.services.ILocationSharingService;
 import com.pyb.trackme.services.TrackMeService;
 import com.pyb.trackme.socket.IAckListener;
-import com.pyb.trackme.socket.IConnectionListener;
 import com.pyb.trackme.socket.IEventListener;
 import com.pyb.trackme.socket.SocketManager;
 
-import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -82,7 +77,7 @@ import retrofit2.Callback;
 import retrofit2.Response;
 
 
-public class HomeActivity extends AppCompatActivity implements OnMapReadyCallback {
+public class HomeActivity extends AppCompatActivity implements OnMapReadyCallback, IRemoveContactButtonClickListener {
 
     private static final int REQUEST_CODE_PICK_CONTACT = 131;
 
@@ -92,17 +87,17 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
     private ListView sharingListView;
     private ListView trackingListView;
     private List<String> sharingContactsList;
-    private List<String> trackingContactsList;
+    private List<Pair<String, Boolean>> trackingContactsList;
     private Switch sharingSwitch;
     private String CHANNEL_ID = "TrackMe_Notification_Channel";
     private SocketManager socketManager;
     private String LOGIN_PREF_NAME;
     private ILocationSharingService locationSharingService;
     private ArrayAdapter<String> sharingListViewAdapter;
-    private ArrayAdapter<String> trackingListViewAdapter;
+    private ArrayAdapter<Pair<String, Boolean>> trackingListViewAdapter;
     private ImageButton addContactBtn;
     private ProgressBar progressBar;
-    private IListViewItemViewProvider trackingListViewHolderProvider;
+//    private IListViewItemViewProvider trackingListViewHolderProvider;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -116,9 +111,12 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
         initializeLocationSharingSwitch();
         sharingContactsList = new ArrayList<>();
         trackingContactsList = new ArrayList<>();
-        sharingListViewAdapter = new SharingContactListViewAdapter(this, sharingContactsList);
+        for(String contact : TrackDetailsDB.db().getContactsToTrackLocation()) {
+            trackingContactsList.add(new Pair<>(contact, false));
+        }
+        sharingListViewAdapter = new SharingContactListViewAdapter(this, sharingContactsList, this);
         trackingListViewAdapter = new TrackingContactsListViewAdapter(this, trackingContactsList);
-        trackingListViewHolderProvider = (IListViewItemViewProvider) trackingListViewAdapter;
+//        trackingListViewHolderProvider = (IListViewItemViewProvider) trackingListViewAdapter;
         intializeDrawerLayout(toolbar);
         initializeAddContactBtn();
         initializeMap();
@@ -128,24 +126,26 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
             @Override
             public void onEvent(String event, Object[] args) {
                 String mobile = (String) args[0];
-                if(!trackingContactsList.contains(mobile)) {
-                    trackingContactsList.add(mobile);
+                int position = getPositionInTrackingList(mobile);
+                if(position != -1) {
+                    trackingContactsList.remove(position);
+                } else {
                     TrackDetailsDB.db().addContactToTrackLocation(mobile);
-                    HomeActivity.this.runOnUiThread(() -> {
-                        trackingListViewAdapter.notifyDataSetChanged();
-                    });
                 }
+                trackingContactsList.add(new Pair(mobile, true));
+                HomeActivity.this.runOnUiThread(() -> {
+                    trackingListViewAdapter.notifyDataSetChanged();
+                });
                 subscribeToContact(mobile);
 
             }
         });
         socketManager.onEvent("publisherNotAvailable", (event, args) -> {
             String mobile = (String) args[0];
+            int position = getPositionInTrackingList(mobile);
+            trackingContactsList.remove(position);
+            trackingContactsList.add(new Pair<>(mobile, false));
             HomeActivity.this.runOnUiThread(() -> {
-                ListViewItemHolder viewItemHolder = trackingListViewHolderProvider.getViewHolder(trackingContactsList.indexOf(mobile));
-                if(viewItemHolder != null) {
-                    viewItemHolder.getLiveImage().setVisibility(View.GONE);
-                }
                 trackingListViewAdapter.notifyDataSetChanged();
                 updateNotAvailableStatusOnMap(mobile);
             });
@@ -181,8 +181,9 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
         if(loggedInMobile.isEmpty()) {
             finish();
         }
-        trackingContactsList.clear();
-        trackingContactsList.addAll(TrackDetailsDB.db().getContactsToTrackLocation());
+//        trackingContactsList.clear();
+
+//        trackingContactsList.addAll(TrackDetailsDB.db().getContactsToTrackLocation());
         sharingContactsList.clear();
         sharingContactsList.addAll(TrackDetailsDB.db().getContactsToShareLocation());
         sharingListViewAdapter.notifyDataSetChanged();
@@ -206,13 +207,6 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
         trackingListView = findViewById(R.id.tracking_list_view);
         sharingListView.setAdapter(sharingListViewAdapter);
         trackingListView.setAdapter(trackingListViewAdapter);
-        sharingListView.setOnItemLongClickListener(new AdapterView.OnItemLongClickListener() {
-            @Override
-            public boolean onItemLongClick(AdapterView<?> parent, View view, final int position, long id) {
-                showDialogToRemoveContact(position);
-                return true;
-            }
-        });
         ActionBarDrawerToggle toggle = new ActionBarDrawerToggle(this, mDrawerLayout, toolbar, R.string.navigation_drawer_open, R.string.navigation_drawer_close);
         mDrawerLayout.addDrawerListener(toggle);
         toggle.setDrawerIndicatorEnabled(true);
@@ -468,9 +462,23 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
 
 
     private void subscribeToTrackContacts() {
-        for (final String contact : trackingContactsList) {
-            subscribeToContact(contact);
+        for (final Pair<String, Boolean> contactLiveStatusPair : trackingContactsList) {
+            subscribeToContact(contactLiveStatusPair.first);
         }
+    }
+
+    private int getPositionInTrackingList(String contact) {
+        int position = 0;
+        boolean found = false;
+        for(Pair<String, Boolean> numberWithStatusPair : trackingContactsList) {
+            if(contact.equals(numberWithStatusPair.first)) {
+                found = true;
+                break;
+            } else {
+                position++;
+            }
+        }
+        return found ? position : -1;
     }
 
     private void subscribeToContact(final String contact) {
@@ -479,12 +487,11 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
             public void onReply(Object[] args) {
                 final JSONObject data = (JSONObject) args[0];
                 try {
+                    int position = getPositionInTrackingList(contact);
+                    trackingContactsList.remove(position);
                     if ("connected".equals(data.getString("status"))) {
+                        trackingContactsList.add(new Pair<>(contact, true));
                         HomeActivity.this.runOnUiThread(() -> {
-                            ListViewItemHolder viewHolder = trackingListViewHolderProvider.getViewHolder(trackingContactsList.indexOf(contact));
-                            if(viewHolder != null) {
-                                viewHolder.getLiveImage().setVisibility(View.VISIBLE);
-                            }
                             try {
                                 if(data.get("lastLocation") != null) {
                                     JSONObject lastLocationObj = null;
@@ -497,6 +504,8 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
                             } catch (JSONException e) {
                                 e.printStackTrace();
                             }
+                            trackingListViewAdapter.notifyDataSetChanged();
+
                         });
 
                         socketManager.onEvent(contact, new IEventListener() {
@@ -519,6 +528,12 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
                                     }
                                 });
                             }
+                        });
+                    } else {
+                        trackingContactsList.add(new Pair<>(contact, false));
+                        HomeActivity.this.runOnUiThread(() -> {
+                            trackingListViewAdapter.notifyDataSetChanged();
+
                         });
                     }
                 } catch (JSONException e) {
@@ -825,6 +840,11 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
                 progressBar.setVisibility(View.GONE);
             }
         });
+    }
+
+    @Override
+    public void onClick(int position) {
+        showDialogToRemoveContact(position);
     }
 }
 
