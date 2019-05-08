@@ -38,6 +38,32 @@
             android:layout_below="@+id/sharing_switch"
             android:background="?android:attr/listDivider" />
 
+        <TextView
+            android:id="@+id/alert_connection"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_below="@+id/sharing_switch"
+            android:layout_centerHorizontal="true"
+            android:layout_marginTop="2dp"
+            android:elevation="7dp"
+            android:fontFamily="@font/andika"
+            android:textColor="#ee0000"
+            android:textSize="16sp"
+            android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/alert_location"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_below="@+id/alert_connection"
+            android:layout_centerHorizontal="true"
+            android:layout_marginTop="2dp"
+            android:elevation="7dp"
+            android:fontFamily="@font/andika"
+            android:textColor="#cc0000"
+            android:textSize="15sp"
+            android:visibility="gone" />
+
         <fragment xmlns:android="http://schemas.android.com/apk/res/android"
             xmlns:tools="http://schemas.android.com/tools"
             android:id="@+id/map"

@@ -3,7 +3,9 @@
     <array name="preloaded_fonts" translatable="false">
         <item>@font/aldrich</item>
         <item>@font/alegreya_sc</item>
+        <item>@font/andika</item>
         <item>@font/averia_sans_libre</item>
+        <item>@font/bad_script</item>
         <item>@font/shojumaru</item>
     </array>
 </resources>
