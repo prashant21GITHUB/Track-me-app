@@ -1,4 +1,4 @@
-package com.pyb.trackme;
+package com.pyb.trackme.activities;
 
 public interface IRemoveContactButtonClickListener {
 

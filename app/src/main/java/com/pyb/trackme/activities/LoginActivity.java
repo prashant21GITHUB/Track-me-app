@@ -1,10 +1,9 @@
-package com.pyb.trackme;
+package com.pyb.trackme.activities;
 
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
-import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
@@ -12,23 +11,17 @@ import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import com.loopj.android.http.JsonHttpResponseHandler;
-import com.loopj.android.http.RequestParams;
-import com.pyb.trackme.db.AppConstants;
+import com.pyb.trackme.R;
+import com.pyb.trackme.cache.AppConstants;
 import com.pyb.trackme.restclient.LoginRequest;
 import com.pyb.trackme.restclient.LoginResponse;
 import com.pyb.trackme.restclient.LoginServiceClient;
 import com.pyb.trackme.restclient.RestClient;
+import com.pyb.trackme.utils.ValidationUtils;
 
-import org.json.JSONArray;
-import org.json.JSONException;
-import org.json.JSONObject;
-
-import cz.msebera.android.httpclient.Header;
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
-import retrofit2.Retrofit;
 
 public class LoginActivity extends AppCompatActivity {
 

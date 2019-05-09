@@ -1,4 +1,4 @@
-package com.pyb.trackme;
+package com.pyb.trackme.utils;
 
 public class ValidationUtils {
 

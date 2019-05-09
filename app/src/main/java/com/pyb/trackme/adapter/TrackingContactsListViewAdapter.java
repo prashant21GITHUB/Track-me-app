@@ -1,4 +1,4 @@
-package com.pyb.trackme;
+package com.pyb.trackme.adapter;
 
 import android.content.Context;
 import android.graphics.Color;
@@ -9,6 +9,8 @@ import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
 import android.widget.ImageView;
 import android.widget.TextView;
+
+import com.pyb.trackme.R;
 
 import java.util.HashMap;
 import java.util.List;

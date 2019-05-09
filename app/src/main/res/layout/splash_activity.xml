@@ -5,13 +5,9 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@android:color/holo_blue_dark"
-    tools:context="com.pyb.trackme.SplashActivity">
+    tools:context="com.pyb.trackme.activities.SplashActivity">
 
 
-    <android.support.v4.widget.SwipeRefreshLayout
-        android:id="@+id/splashPullToRefresh"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content">
         <ImageView
             android:id="@+id/imageView"
             android:layout_width="wrap_content"
@@ -28,7 +24,6 @@
             android:layout_centerInParent="true"
             />
 
-    </android.support.v4.widget.SwipeRefreshLayout>
     <!--<ImageView
         android:id="@+id/imageView"
         android:layout_width="wrap_content"

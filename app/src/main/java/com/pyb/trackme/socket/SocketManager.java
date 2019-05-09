@@ -14,6 +14,7 @@ import org.json.JSONObject;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 import static com.pyb.trackme.restclient.ServiceURL.BASE_URL;
 
@@ -22,12 +23,14 @@ public class SocketManager {
     private static SocketManager INSTANCE;
     private Socket mSocket;
     private int socketUsers;
+    private List<IConnectionListener> connectionListeners;
 
     private SocketManager() {
         try {
             mSocket = IO.socket(BASE_URL);
+            connectionListeners = new ArrayList<>();
         } catch (URISyntaxException e) {
-            Log.e("SocketManager", "Failed to connect to server: " + e);
+            Log.e("TrackMe_SocketManager", "Failed to connect to server: " + e);
         }
     }
 
@@ -39,19 +42,24 @@ public class SocketManager {
     }
 
     public void connect(final IConnectionListener connectionListener) {
+        connectionListeners.add(connectionListener);
         if(!mSocket.connected()) {
             mSocket.on(Socket.EVENT_CONNECT, new Emitter.Listener() {
                 @Override
                 public void call(Object... args) {
-                    Log.d("ok", "ok");
-                    connectionListener.onConnect();
+                    Log.d("TrackMe_SocketManager", "Connected");
+                    for(IConnectionListener listener : connectionListeners){
+                        listener.onConnect();
+                    }
                 }
             });
             mSocket.on(Socket.EVENT_DISCONNECT, new Emitter.Listener() {
                 @Override
                 public void call(Object... args) {
-                    Log.d("ok", "ok");
-                    connectionListener.onDisconnect();
+                    Log.d("TrackMe_SocketManager", "Disconnected");
+                    for(IConnectionListener listener : connectionListeners){
+                        listener.onDisconnect();
+                    }
                 }
             });
             mSocket.connect();
@@ -61,14 +69,21 @@ public class SocketManager {
         socketUsers++;
     }
 
-    public void disconnect() {
-        if(mSocket.connected()) {
-            if(socketUsers == 1) {
-                mSocket.disconnect();
-                mSocket.off();
-            }
-            socketUsers--;
+    //TODO : connection listener should not be passed as null, if it happens check the logic from where it has been passed as null.
+    public void softDisconnect(IConnectionListener connectionListener) {
+        if(socketUsers == 1) {
+            hardDisconnect();
         }
+        connectionListeners.remove(connectionListener);
+        socketUsers--;
+    }
+
+    public void hardDisconnect() {
+        if(mSocket.connected()) {
+            mSocket.disconnect();
+            mSocket.off();
+        }
+        connectionListeners.clear();
     }
 
     public void onEvent(final String event, final IEventListener listener) {

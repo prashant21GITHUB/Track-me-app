@@ -26,10 +26,10 @@ import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationResult;
 import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.maps.model.LatLng;
-import com.pyb.trackme.HomeActivity;
+import com.pyb.trackme.activities.HomeActivity;
 import com.pyb.trackme.R;
 import com.pyb.trackme.TrackMeApplication;
-import com.pyb.trackme.db.TrackDetailsDB;
+import com.pyb.trackme.cache.TrackDetailsDB;
 import com.pyb.trackme.socket.IConnectionListener;
 import com.pyb.trackme.socket.SocketManager;
 
@@ -38,7 +38,6 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 
 public class LocationService extends Service {
@@ -53,6 +52,7 @@ public class LocationService extends Service {
     private String NOTIFICATION_CHANNEL_ID = "TrackMe_Notification_Channel";
     private final String TAG = "TrackMe_LocationService";
     private String LOGIN_PREF_NAME;
+    private IConnectionListener socketConnectionListener;
 
     @Override
     public IBinder onBind(Intent intent) {
@@ -67,6 +67,7 @@ public class LocationService extends Service {
         socketManager = ((TrackMeApplication)getApplication()).getSocketManager();
         Intent notificationIntent = new Intent(getApplicationContext(), HomeActivity.class);
 //        notificationIntent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
+        notificationIntent.setAction(NOTIFICATION_CHANNEL_ID);
         PendingIntent pendingIntent =
                 PendingIntent.getActivity(getApplicationContext(), 0, notificationIntent, 0);
 
@@ -99,8 +100,6 @@ public class LocationService extends Service {
         Log.d(TAG, "Service Created");
     }
 
-    private boolean alreadyConnectedToServer;
-
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         super.onStartCommand(intent, flags, startId);
@@ -114,7 +113,7 @@ public class LocationService extends Service {
 
     private boolean socketConnected;
     private void connectToServer() {
-        socketManager.connect(new IConnectionListener() {
+        socketConnectionListener = new IConnectionListener() {
             @Override
             public void onConnect() {
                 socketConnected = true;
@@ -132,7 +131,8 @@ public class LocationService extends Service {
             public void onDisconnect() {
                 socketConnected = false;
             }
-        });
+        };
+        socketManager.connect(socketConnectionListener);
     }
 
     private void resumeSendingLocationUpdates() {
@@ -200,7 +200,7 @@ public class LocationService extends Service {
             wakeLock.release();
         }
         stopSendingLocationUpdates();
-        socketManager.disconnect();
+        socketManager.softDisconnect(socketConnectionListener);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             stopForeground(true); //true will remove notification
         } else {

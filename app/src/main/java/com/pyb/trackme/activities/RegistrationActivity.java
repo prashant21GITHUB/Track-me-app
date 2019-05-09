@@ -1,4 +1,4 @@
-package com.pyb.trackme;
+package com.pyb.trackme.activities;
 
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -11,11 +11,13 @@ import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import com.pyb.trackme.db.AppConstants;
+import com.pyb.trackme.R;
+import com.pyb.trackme.cache.AppConstants;
 import com.pyb.trackme.restclient.LoginRequest;
 import com.pyb.trackme.restclient.LoginResponse;
 import com.pyb.trackme.restclient.LoginServiceClient;
 import com.pyb.trackme.restclient.RestClient;
+import com.pyb.trackme.utils.ValidationUtils;
 
 import retrofit2.Call;
 import retrofit2.Callback;
