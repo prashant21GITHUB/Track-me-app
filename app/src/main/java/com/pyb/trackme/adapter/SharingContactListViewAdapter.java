@@ -41,7 +41,7 @@ public class SharingContactListViewAdapter extends ArrayAdapter<String> {
         removeContactBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                removeContactButtonClickListener.onClick(position);
+                removeContactButtonClickListener.onRemoveContactButtonClick(position);
             }
         });
         TextView number = rowView.findViewById(R.id.tracked_number);

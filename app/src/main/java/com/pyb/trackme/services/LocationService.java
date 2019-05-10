@@ -76,6 +76,7 @@ public class LocationService extends Service {
                 .setContentIntent(pendingIntent)
                 .setContentTitle("Sharing live location !!")
                 .setContentText("Click here to stop sharing")
+                .setOngoing(true)
                 .setPriority(NotificationCompat.PRIORITY_DEFAULT);
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {

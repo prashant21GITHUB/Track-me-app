@@ -5,16 +5,16 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
-    <android.support.v4.widget.SwipeRefreshLayout
-        android:id="@+id/pullToRefresh"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent">
-
     <RelativeLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         xmlns:android="http://schemas.android.com/apk/res/android"
         xmlns:app="http://schemas.android.com/apk/res-auto">
+
+        <android.support.v4.widget.SwipeRefreshLayout
+            android:id="@+id/pullToRefresh"
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize">
 
         <android.support.v7.widget.Toolbar
             android:id="@+id/toolbar"
@@ -25,11 +25,12 @@
             android:theme="@style/MainMenu"
             app:popupTheme="@style/android:Theme.Holo.Light"/>
 
+        </android.support.v4.widget.SwipeRefreshLayout>
         <Switch
             android:id="@+id/sharing_switch"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_below="@+id/toolbar"
+            android:layout_below="@+id/pullToRefresh"
             android:layout_centerHorizontal="true"
             android:text="Share location "
             android:textSize="20sp"
@@ -83,7 +84,7 @@
             android:layout_width="30dp"
             android:layout_height="30dp"
             android:layout_toRightOf="@+id/sharing_switch"
-            android:layout_below="@+id/toolbar"
+            android:layout_below="@+id/pullToRefresh"
             android:background="@android:color/transparent"
             android:scaleType="fitCenter"
             android:layout_margin="10dp"
@@ -99,7 +100,6 @@
 
 
     </RelativeLayout>
-    </android.support.v4.widget.SwipeRefreshLayout>
 
 
     <include layout="@layout/drawer_layout"/>
