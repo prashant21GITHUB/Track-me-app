@@ -742,13 +742,11 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
                     .icon(BitmapDescriptorFactory.defaultMarker(lineAndIconColorPair.second));
 
             currLocationMarker = googleMap.addMarker(markerOptions);
-            currLocationMarker.showInfoWindow();
             currLocationMarkerMap.put(trackingContact, currLocationMarker);
         }
         if(!snippet.equals(currLocationMarker.getSnippet())) {
             currLocationMarker.hideInfoWindow();
             currLocationMarker.setSnippet(snippet);
-            currLocationMarker.showInfoWindow();
         }
 
         currLocationMarker.setPosition(latLng);
