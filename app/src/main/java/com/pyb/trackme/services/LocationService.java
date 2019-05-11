@@ -47,6 +47,7 @@ import java.util.List;
 
 public class LocationService extends Service {
 
+    private final long DELAY_IN_MILLIS = 10000L;
 //    private PowerManager.WakeLock wakeLock;
     private FusedLocationProviderClient mFusedLocationClient;
     private LocationRequest mLocationRequest;
@@ -86,7 +87,7 @@ public class LocationService extends Service {
         mLocationRequest.setFastestInterval(1000);
         mLocationRequest.setSmallestDisplacement(1f);
         mLocationRequest.setPriority(LocationRequest.PRIORITY_BALANCED_POWER_ACCURACY);
-        handler = new Handler(Looper.getMainLooper());
+        handler = new Handler();
 
         locationServiceChangeReceiver = new LocationServiceChangeReceiver(new IConnectionListener() {
             @Override
@@ -97,7 +98,7 @@ public class LocationService extends Service {
                         showForegroundNotification();
                         resumeSendingLocationUpdates();
                     }
-                }, 15000L);
+                }, DELAY_IN_MILLIS);
             }
 
             @Override
@@ -108,7 +109,7 @@ public class LocationService extends Service {
                         stopForegroundNotification();
                         showSharingStoppedNotification();
                     }
-                }, 15000L);
+                }, DELAY_IN_MILLIS);
 
             }
         });
@@ -122,7 +123,7 @@ public class LocationService extends Service {
                         showForegroundNotification();
                         resumeSendingLocationUpdates();
                     }
-                }, 10000L);
+                }, DELAY_IN_MILLIS);
             }
 
             @Override
@@ -133,7 +134,7 @@ public class LocationService extends Service {
                         stopForegroundNotification();
                         showSharingStoppedNotification();
                     }
-                }, 10000L);
+                }, DELAY_IN_MILLIS);
 
             }
         });
@@ -200,8 +201,8 @@ public class LocationService extends Service {
             @Override
             public void onConnect() {
                 socketConnected = true;
-                sendEventToPublishLocationData();
                 socketManager.sendEventMessage("connectedMobile", loggedInMobile);
+                sendEventToPublishLocationData();
                 handler.post(new Runnable() {
                     @Override
                     public void run() {
@@ -288,7 +289,7 @@ public class LocationService extends Service {
         socketManager.softDisconnect(socketConnectionListener);
         stopForegroundNotification();
         unregisterReceiver(networkChangeReceiver);
-//        unregisterReceiver(locationServiceChangeReceiver);
+        unregisterReceiver(locationServiceChangeReceiver);
         Log.d("TrackMe_LocationService", "Service destroyed");
         super.onDestroy();
     }

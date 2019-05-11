@@ -17,6 +17,7 @@ import com.pyb.trackme.restclient.LoginRequest;
 import com.pyb.trackme.restclient.LoginResponse;
 import com.pyb.trackme.restclient.LoginServiceClient;
 import com.pyb.trackme.restclient.RestClient;
+import com.pyb.trackme.utils.ConnectionUtils;
 import com.pyb.trackme.utils.ValidationUtils;
 
 import retrofit2.Call;
@@ -58,7 +59,6 @@ public class LoginActivity extends AppCompatActivity {
                 @Override
                 public void onClick(View v) {
                     Intent intent = new Intent(LoginActivity.this, RegistrationActivity.class);
-//                    startActivityForResult(intent, EXIT_CODE);
                     startActivity(intent);
                 }
             });
@@ -77,10 +77,22 @@ public class LoginActivity extends AppCompatActivity {
     public void onRestart() {
         super.onRestart();
         if(isUserLoggedIn) {
-            finish();  //TODO review the logic to destroy login activity
+            finish();
+        }
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        if(!ConnectionUtils.isConnectedToInternet(this)) {
+            Toast.makeText(this, "Check your internet connection !!", Toast.LENGTH_SHORT).show();
         }
     }
     private void onSubmitButtonClick() {
+        if(!ConnectionUtils.isConnectedToInternet(this)) {
+            Toast.makeText(this, "Check your internet connection !!", Toast.LENGTH_SHORT).show();
+            return;
+        }
         String mobile = mobileNumber.getText().toString();
         if(!ValidationUtils.isValidNumber(mobile)) {
             mobileNumber.requestFocus();

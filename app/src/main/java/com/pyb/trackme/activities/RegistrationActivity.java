@@ -17,6 +17,7 @@ import com.pyb.trackme.restclient.LoginRequest;
 import com.pyb.trackme.restclient.LoginResponse;
 import com.pyb.trackme.restclient.LoginServiceClient;
 import com.pyb.trackme.restclient.RestClient;
+import com.pyb.trackme.utils.ConnectionUtils;
 import com.pyb.trackme.utils.ValidationUtils;
 
 import retrofit2.Call;
@@ -55,13 +56,16 @@ public class RegistrationActivity extends AppCompatActivity {
         loginLink.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                Intent intent = new Intent(RegistrationActivity.this, LoginActivity.class);
-                startActivityForResult(intent, EXIT_CODE);
+                finish();
             }
         });
     }
 
     private void onSubmitButtonClick() {
+        if(!ConnectionUtils.isConnectedToInternet(this)) {
+            Toast.makeText(this, "Check your internet connection !!", Toast.LENGTH_SHORT).show();
+            return;
+        }
         String name = fullName.getText().toString();
         if(!ValidationUtils.isValidName(name)) {
             mobileNumber.requestFocus();
@@ -100,12 +104,13 @@ public class RegistrationActivity extends AppCompatActivity {
                     LoginResponse loginResponse = response.body();
                     if(loginResponse.isSuccess()) {
                         saveUserLoginDetails(name, mobileNumber);
-                        Intent intent = new Intent(RegistrationActivity.this, HomeActivity.class);
+                        Intent intent = new Intent(RegistrationActivity.this, SplashActivity.class);
                         Bundle bundle = new Bundle();
                         bundle.putString("name", name);
                         bundle.putString("mobile", mobileNumber);
                         intent.putExtras(bundle);
-                        startActivityForResult(intent, EXIT_CODE);
+                        startActivity(intent);
+                        finish();
                     } else {
                         Toast.makeText(getApplicationContext(), loginResponse.getMessage(), Toast.LENGTH_SHORT).show();
                     }
