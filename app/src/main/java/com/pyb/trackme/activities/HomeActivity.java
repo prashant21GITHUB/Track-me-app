@@ -18,6 +18,8 @@ import android.net.NetworkInfo;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.provider.ContactsContract;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
@@ -125,6 +127,8 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
         }
     };;
     private List<String> unsubscribedContacts = new ArrayList<>();
+    private boolean isActivityRunning;
+    private Handler handler;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -132,13 +136,13 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
         setContentView(R.layout.home_activity);
         LOGIN_PREF_NAME = getApplicationInfo().packageName +"_Login";
         readLoggedInUserDetailsAndLocationSharingStatus();
-
         Toolbar toolbar =  findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
         connectionAlertTextView = findViewById(R.id.alert_connection);
         locationAlertTextView = findViewById(R.id.alert_location);
         sharingListView =  findViewById(R.id.sharing_list_view);
         trackingListView = findViewById(R.id.tracking_list_view);
+        swipeRefreshLayout = findViewById(R.id.pullToRefresh);
         attachItemClickListeners();
         initializeReceiverForNetworkEvents();
         initializeReceiverForLocationServiceEvents();
@@ -159,6 +163,7 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
         createNotificationChannel();
 
         progressBar = findViewById(R.id.progressBarHomeActivity);
+        handler = new Handler(Looper.getMainLooper());
     }
 
     private void attachItemClickListeners() {
@@ -208,7 +213,6 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
     }
 
     private void initializeSwipeRefreshLayout() {
-        swipeRefreshLayout = findViewById(R.id.pullToRefresh);
         swipeRefreshLayout.setOnRefreshListener(new SwipeRefreshLayout.OnRefreshListener() {
             @Override
             public void onRefresh() {
@@ -393,7 +397,12 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
                         sharingSwitch.setChecked(false);
                         return;
                     }
-                    if(!isLocationServiceOn() || !isConnectedToInternet()) {
+                    if(!ConnectionUtils.isLocationServiceOn(HomeActivity.this)) {
+                        sharingSwitch.setChecked(false);
+                        buildAlertMessageNoGps();
+                    }
+                    if(!ConnectionUtils.isConnectedToInternet(HomeActivity.this)) {
+                        buildNoInternetDialog();
                         sharingSwitch.setChecked(false);
                         return;
                     }
@@ -417,6 +426,7 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
         } else {
             startForegroundService(service);
         }
+        locationSharingStatus = true;
         new Thread(()->{
             saveLocationSharingStatusInPref(true);
         }).start();
@@ -426,6 +436,7 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
     private void stopLocationSharingService() {
         Intent service = new Intent(getApplicationContext(), LocationService.class);
         stopService(service);
+        locationSharingStatus = false;
         new Thread(()->{
             saveLocationSharingStatusInPref(false);
         }).start();
@@ -438,16 +449,10 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
         editor.commit();
     }
 
-    public boolean isLocationServiceOn() {
-        final LocationManager manager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
-        if (!manager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
-            buildAlertMessageNoGps();
-            return false;
-        }
-        return true;
-    }
-
     private void buildAlertMessageNoGps() {
+        if(!isActivityRunning) {
+            return;
+        }
         final AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setMessage("Your GPS seems to be disabled, do you want to enable it?")
                 .setCancelable(false)
@@ -478,6 +483,9 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
     }
 
     private void buildNoInternetDialog() {
+        if(!isActivityRunning) {
+            return;
+        }
         AlertDialog.Builder builder = new AlertDialog.Builder(HomeActivity.this)
                 .setTitle("Check your internet connection")
                 .setMessage("Please connect to mobile data or wifi !!")
@@ -820,6 +828,7 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
     @Override
     public void onResume() {
         super.onResume();
+        isActivityRunning = true;
         IntentFilter filter = new IntentFilter();
         filter.addAction("android.net.conn.CONNECTIVITY_CHANGE");
 //        filter.addAction(getPackageName() + "android.net.wifi.WIFI_STATE_CHANGED");  ///TODO check if this intent filter is needed ?
@@ -830,18 +839,35 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
         registerReceiver(locationServiceChangeReceiver, filter);
     }
 
+    @Override
+    public void onPause() {
+        super.onPause();
+        isActivityRunning = false;
+    }
+
     private void initializeReceiverForNetworkEvents() {
         networkChangeReceiver = new NetworkChangeReceiver(new IConnectionListener() {
             @Override
             public void onConnect() {
-                connectionAlertTextView.setVisibility(View.GONE);
-                getTrackingDetailsFromServerAndInitiliazeSocket();
+                handler.postDelayed(() -> {
+                    if(ConnectionUtils.isConnectedToInternet(HomeActivity.this)) {
+                        connectionAlertTextView.setVisibility(View.GONE);
+                        getTrackingDetailsFromServerAndInitiliazeSocket();
+                        sharingSwitch.setChecked(true);
+                    }
+                }, 5000L);
             }
 
             @Override
             public void onDisconnect() {
-                connectionAlertTextView.setText("Internet not available !!");
-                connectionAlertTextView.setVisibility(View.VISIBLE);
+                handler.postDelayed(() -> {
+                    if(!ConnectionUtils.isConnectedToInternet(HomeActivity.this)) {
+                        connectionAlertTextView.setText("Internet not available !!");
+                        connectionAlertTextView.setVisibility(View.VISIBLE);
+                        sharingSwitch.setChecked(false);
+                    }
+                }, 5000L);
+
             }
         });
     }
@@ -850,13 +876,24 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
         locationServiceChangeReceiver = new LocationServiceChangeReceiver(new IConnectionListener() {
             @Override
             public void onConnect() {
-                locationAlertTextView.setVisibility(View.GONE);
+                handler.postDelayed(() -> {
+                    if(ConnectionUtils.isLocationServiceOn(HomeActivity.this)) {
+                        locationAlertTextView.setVisibility(View.GONE);
+                        sharingSwitch.setChecked(true);
+                    }
+                }, 5000L);
             }
 
             @Override
             public void onDisconnect() {
-                locationAlertTextView.setText("Turn on location service !!");
-                locationAlertTextView.setVisibility(View.VISIBLE);
+                handler.postDelayed(() -> {
+                    if(!ConnectionUtils.isLocationServiceOn(HomeActivity.this)) {
+                        locationAlertTextView.setText("Turn on location service !!");
+                        locationAlertTextView.setVisibility(View.VISIBLE);
+                        sharingSwitch.setChecked(false);
+                    }
+                }, 5000L);
+
             }
         });
     }
@@ -872,6 +909,8 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
     @Override
     public void onDestroy() {
         super.onDestroy();
+        //token passed as null, so that it can remove all runners
+        handler.removeCallbacksAndMessages(null);
         if(socketManager != null) {
             socketManager.offEvent("publisherAvailable");
             socketManager.offEvent("publisherNotAvailable");

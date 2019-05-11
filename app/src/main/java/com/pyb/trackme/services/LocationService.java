@@ -7,6 +7,7 @@ import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.location.Location;
@@ -19,6 +20,7 @@ import android.support.v4.app.NotificationCompat;
 import android.support.v4.app.NotificationManagerCompat;
 import android.support.v4.content.ContextCompat;
 import android.util.Log;
+import android.view.View;
 
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationCallback;
@@ -30,8 +32,11 @@ import com.pyb.trackme.activities.HomeActivity;
 import com.pyb.trackme.R;
 import com.pyb.trackme.TrackMeApplication;
 import com.pyb.trackme.cache.TrackDetailsDB;
+import com.pyb.trackme.receiver.LocationServiceChangeReceiver;
+import com.pyb.trackme.receiver.NetworkChangeReceiver;
 import com.pyb.trackme.socket.IConnectionListener;
 import com.pyb.trackme.socket.SocketManager;
+import com.pyb.trackme.utils.ConnectionUtils;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -42,29 +47,101 @@ import java.util.List;
 
 public class LocationService extends Service {
 
-    private PowerManager.WakeLock wakeLock;
+//    private PowerManager.WakeLock wakeLock;
     private FusedLocationProviderClient mFusedLocationClient;
     private LocationRequest mLocationRequest;
     private String loggedInMobile;
     private SocketManager socketManager;
     private String loggedInName;
     private int ONGOING_NOTIFICATION_ID = 1343;
+    private int STOPPED_SHARING_NOTIFICATION_ID = 1353;
     private String NOTIFICATION_CHANNEL_ID = "TrackMe_Notification_Channel";
     private final String TAG = "TrackMe_LocationService";
     private String LOGIN_PREF_NAME;
     private IConnectionListener socketConnectionListener;
+    private NetworkChangeReceiver networkChangeReceiver;
+    private LocationServiceChangeReceiver locationServiceChangeReceiver;
+    private Handler handler;
 
     @Override
     public IBinder onBind(Intent intent) {
         return null;
     }
 
-    @SuppressLint("InvalidWakeLockTag")
+//    @SuppressLint("InvalidWakeLockTag")
     @Override
     public void onCreate() {
         super.onCreate();
         LOGIN_PREF_NAME = getApplicationInfo().packageName +"_Login";
         socketManager = ((TrackMeApplication)getApplication()).getSocketManager();
+        showForegroundNotification();
+
+//        PowerManager pm = (PowerManager) getSystemService(this.POWER_SERVICE);
+//        wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "TrackMe_Lock");
+//        if (!wakeLock.isHeld()) {
+//            wakeLock.acquire();
+//        }
+        mLocationRequest = new LocationRequest();
+        mLocationRequest.setInterval(1000); // periodic interval
+        mLocationRequest.setFastestInterval(1000);
+        mLocationRequest.setSmallestDisplacement(1f);
+        mLocationRequest.setPriority(LocationRequest.PRIORITY_BALANCED_POWER_ACCURACY);
+        handler = new Handler(Looper.getMainLooper());
+
+        locationServiceChangeReceiver = new LocationServiceChangeReceiver(new IConnectionListener() {
+            @Override
+            public void onConnect() {
+                handler.postDelayed(() -> {
+                    if(ConnectionUtils.isLocationServiceOn(LocationService.this)) {
+                        cancelSharingStoppedNotification();
+                        showForegroundNotification();
+                        resumeSendingLocationUpdates();
+                    }
+                }, 15000L);
+            }
+
+            @Override
+            public void onDisconnect() {
+                handler.postDelayed(() -> {
+                    if(!ConnectionUtils.isLocationServiceOn(LocationService.this)) {
+                        stopSendingLocationUpdates();
+                        stopForegroundNotification();
+                        showSharingStoppedNotification();
+                    }
+                }, 15000L);
+
+            }
+        });
+
+        networkChangeReceiver = new NetworkChangeReceiver(new IConnectionListener() {
+            @Override
+            public void onConnect() {
+                handler.postDelayed(() -> {
+                    if (ConnectionUtils.isConnectedToInternet(LocationService.this)) {
+                        cancelSharingStoppedNotification();
+                        showForegroundNotification();
+                        resumeSendingLocationUpdates();
+                    }
+                }, 10000L);
+            }
+
+            @Override
+            public void onDisconnect() {
+                handler.postDelayed(() -> {
+                    if (!ConnectionUtils.isConnectedToInternet(LocationService.this)) {
+                        stopSendingLocationUpdates();
+                        stopForegroundNotification();
+                        showSharingStoppedNotification();
+                    }
+                }, 10000L);
+
+            }
+        });
+
+        Log.d(TAG, "Service Created");
+    }
+
+    private void showForegroundNotification() {
         Intent notificationIntent = new Intent(getApplicationContext(), HomeActivity.class);
 //        notificationIntent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
         notificationIntent.setAction(NOTIFICATION_CHANNEL_ID);
@@ -86,19 +163,6 @@ public class LocationService extends Service {
             // notificationId is a unique int for each notification that you must define
             notificationManager.notify(ONGOING_NOTIFICATION_ID, builder.build());
         }
-
-        PowerManager pm = (PowerManager) getSystemService(this.POWER_SERVICE);
-        wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "TrackMe_Lock");
-        if (!wakeLock.isHeld()) {
-            wakeLock.acquire();
-        }
-        mLocationRequest = new LocationRequest();
-        mLocationRequest.setInterval(1000); // periodic interval
-        mLocationRequest.setFastestInterval(1000);
-        mLocationRequest.setSmallestDisplacement(1f);
-        mLocationRequest.setPriority(LocationRequest.PRIORITY_BALANCED_POWER_ACCURACY);
-
-        Log.d(TAG, "Service Created");
     }
 
     @Override
@@ -108,8 +172,26 @@ public class LocationService extends Service {
         Log.d(TAG, "Service Started");
         if(!socketConnected) {
             connectToServer();
+        } else {
+            sendEventToPublishLocationData();
+            resumeSendingLocationUpdates();
         }
+        registerNetworkChangeReceiver();
+        registerLocationServiceChangeReceiver();
         return START_STICKY;
+    }
+
+    private void registerLocationServiceChangeReceiver() {
+        IntentFilter filter = new IntentFilter();
+        filter.addAction("android.location.PROVIDERS_CHANGED");
+        registerReceiver(locationServiceChangeReceiver, filter);
+    }
+
+    private void registerNetworkChangeReceiver() {
+        IntentFilter filter = new IntentFilter();
+        filter.addAction("android.net.conn.CONNECTIVITY_CHANGE");
+//        filter.addAction(getPackageName() + "android.net.wifi.WIFI_STATE_CHANGED");  ///TODO check if this intent filter is needed ?
+        registerReceiver(networkChangeReceiver, filter);
     }
 
     private boolean socketConnected;
@@ -120,7 +202,7 @@ public class LocationService extends Service {
                 socketConnected = true;
                 sendEventToPublishLocationData();
                 socketManager.sendEventMessage("connectedMobile", loggedInMobile);
-                new Handler(Looper.getMainLooper()).post(new Runnable() {
+                handler.post(new Runnable() {
                     @Override
                     public void run() {
                         resumeSendingLocationUpdates();
@@ -197,24 +279,49 @@ public class LocationService extends Service {
 
     @Override
     public void onDestroy() {
-        if(wakeLock.isHeld()) {
-            wakeLock.release();
-        }
+//        if(wakeLock.isHeld()) {
+//            wakeLock.release();
+//        }
+        //token passed as null, so that it can remove all runners
+        handler.removeCallbacksAndMessages(null);
         stopSendingLocationUpdates();
         socketManager.softDisconnect(socketConnectionListener);
+        stopForegroundNotification();
+        unregisterReceiver(networkChangeReceiver);
+//        unregisterReceiver(locationServiceChangeReceiver);
+        Log.d("TrackMe_LocationService", "Service destroyed");
+        super.onDestroy();
+    }
+
+    private void stopForegroundNotification() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             stopForeground(true); //true will remove notification
         } else {
             NotificationManager notificationManager = (NotificationManager) getApplicationContext().getSystemService(Context.NOTIFICATION_SERVICE);
             notificationManager.cancel(ONGOING_NOTIFICATION_ID);
         }
-        Log.d("TrackMe_LocationService", "Service destroyed");
-        super.onDestroy();
     }
 
     private void stopSendingLocationUpdates() {
-        socketManager.sendEventMessage("stopPublish", loggedInMobile);
-        mFusedLocationClient.flushLocations();
-        mFusedLocationClient.removeLocationUpdates(mLocationCallback);
+        if(mFusedLocationClient != null) {
+            mFusedLocationClient.flushLocations();
+            mFusedLocationClient.removeLocationUpdates(mLocationCallback);
+        }
+    }
+
+    private void showSharingStoppedNotification() {
+        NotificationCompat.Builder builder = new NotificationCompat.Builder(getApplicationContext(), NOTIFICATION_CHANNEL_ID)
+                .setSmallIcon(R.drawable.app_noti)
+                .setContentTitle("Stopped sharing location !!")
+                .setContentText("Check internet or location settings")
+                .setPriority(NotificationCompat.PRIORITY_DEFAULT);
+        NotificationManagerCompat notificationManager = NotificationManagerCompat.from(this);
+        // notificationId is a unique int for each notification that you must define
+        notificationManager.notify(STOPPED_SHARING_NOTIFICATION_ID, builder.build());
+    }
+
+    private void cancelSharingStoppedNotification() {
+        NotificationManager notificationManager = (NotificationManager) getApplicationContext().getSystemService(Context.NOTIFICATION_SERVICE);
+        notificationManager.cancel(STOPPED_SHARING_NOTIFICATION_ID);
     }
 }
