@@ -401,6 +401,7 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
                     if(!ConnectionUtils.isLocationServiceOn(HomeActivity.this)) {
                         sharingSwitch.setChecked(false);
                         buildAlertMessageNoGps();
+                        return;
                     }
                     if(!ConnectionUtils.isConnectedToInternet(HomeActivity.this)) {
                         buildNoInternetDialog();
@@ -850,6 +851,9 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
     public void onResume() {
         super.onResume();
         isActivityRunning = true;
+        if(!ConnectionUtils.isConnectedToInternet(this) || !ConnectionUtils.isLocationServiceOn(this)) {
+            changeSwichStatusWithoutListener(false);
+        }
         IntentFilter filter = new IntentFilter();
         filter.addAction("android.net.conn.CONNECTIVITY_CHANGE");
 //        filter.addAction(getPackageName() + "android.net.wifi.WIFI_STATE_CHANGED");  ///TODO check if this intent filter is needed ?

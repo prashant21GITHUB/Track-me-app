@@ -17,6 +17,9 @@ public class LocationServiceChangeReceiver extends BroadcastReceiver {
 
     @Override
     public void onReceive(Context context, Intent intent) {
+        if(isInitialStickyBroadcast()) {
+            return;
+        }
         if(isLocationServiceOn(context)) {
             connectionListener.onConnect();
         } else{

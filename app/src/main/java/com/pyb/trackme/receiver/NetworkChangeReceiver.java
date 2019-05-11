@@ -17,6 +17,9 @@ public class NetworkChangeReceiver extends BroadcastReceiver {
 
     @Override
     public void onReceive(final Context context, final Intent intent) {
+        if(isInitialStickyBroadcast()) {
+            return;
+        }
         if(ConnectionUtils.isConnectedToInternet(context)) {
             connectionListener.onConnect();
         } else {
