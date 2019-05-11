@@ -31,6 +31,7 @@ import com.google.android.gms.maps.model.LatLng;
 import com.pyb.trackme.activities.HomeActivity;
 import com.pyb.trackme.R;
 import com.pyb.trackme.TrackMeApplication;
+import com.pyb.trackme.cache.AppConstants;
 import com.pyb.trackme.cache.TrackDetailsDB;
 import com.pyb.trackme.receiver.LocationServiceChangeReceiver;
 import com.pyb.trackme.receiver.NetworkChangeReceiver;
@@ -90,52 +91,62 @@ public class LocationService extends Service {
         handler = new Handler();
 
         locationServiceChangeReceiver = new LocationServiceChangeReceiver(new IConnectionListener() {
+            private final Runnable onConnectRunner = () -> {
+                if(ConnectionUtils.isLocationServiceOn(LocationService.this)) {
+                    cancelSharingStoppedNotification();
+//                        showForegroundNotification();
+                    resumeSendingLocationUpdates();
+                }
+            };
+
+            private final Runnable onDisconnectRunner = () -> {
+                if(!ConnectionUtils.isLocationServiceOn(LocationService.this)) {
+                    stopSendingLocationUpdates();
+//                        stopForegroundNotification();
+                    showSharingStoppedNotification();
+                }
+            };
+
             @Override
             public void onConnect() {
-                handler.postDelayed(() -> {
-                    if(ConnectionUtils.isLocationServiceOn(LocationService.this)) {
-                        cancelSharingStoppedNotification();
-                        showForegroundNotification();
-                        resumeSendingLocationUpdates();
-                    }
-                }, DELAY_IN_MILLIS);
+                handler.removeCallbacksAndMessages(null);
+                handler.postDelayed(onConnectRunner, DELAY_IN_MILLIS);
             }
 
             @Override
             public void onDisconnect() {
-                handler.postDelayed(() -> {
-                    if(!ConnectionUtils.isLocationServiceOn(LocationService.this)) {
-                        stopSendingLocationUpdates();
-                        stopForegroundNotification();
-                        showSharingStoppedNotification();
-                    }
-                }, DELAY_IN_MILLIS);
-
+                handler.removeCallbacksAndMessages(null);
+                handler.postDelayed(onDisconnectRunner, DELAY_IN_MILLIS);
             }
         });
 
         networkChangeReceiver = new NetworkChangeReceiver(new IConnectionListener() {
+            private final Runnable onConnectRunner = () -> {
+                if (ConnectionUtils.isConnectedToInternet(LocationService.this)) {
+                    cancelSharingStoppedNotification();
+//                        showForegroundNotification();
+                    resumeSendingLocationUpdates();
+                }
+            };
+
+            private final Runnable onDisconnectRunner = () -> {
+                if (!ConnectionUtils.isConnectedToInternet(LocationService.this)) {
+                    stopSendingLocationUpdates();
+//                        stopForegroundNotification();
+                    showSharingStoppedNotification();
+                }
+            };
+
             @Override
             public void onConnect() {
-                handler.postDelayed(() -> {
-                    if (ConnectionUtils.isConnectedToInternet(LocationService.this)) {
-                        cancelSharingStoppedNotification();
-                        showForegroundNotification();
-                        resumeSendingLocationUpdates();
-                    }
-                }, DELAY_IN_MILLIS);
+                handler.removeCallbacksAndMessages(null);
+                handler.postDelayed(onConnectRunner, DELAY_IN_MILLIS);
             }
 
             @Override
             public void onDisconnect() {
-                handler.postDelayed(() -> {
-                    if (!ConnectionUtils.isConnectedToInternet(LocationService.this)) {
-                        stopSendingLocationUpdates();
-                        stopForegroundNotification();
-                        showSharingStoppedNotification();
-                    }
-                }, DELAY_IN_MILLIS);
-
+                handler.removeCallbacksAndMessages(null);
+                handler.postDelayed(onDisconnectRunner, DELAY_IN_MILLIS);
             }
         });
 
@@ -285,6 +296,7 @@ public class LocationService extends Service {
 //        }
         //token passed as null, so that it can remove all runners
         handler.removeCallbacksAndMessages(null);
+        socketManager.sendEventMessage("stopPublish", loggedInMobile);
         stopSendingLocationUpdates();
         socketManager.softDisconnect(socketConnectionListener);
         stopForegroundNotification();

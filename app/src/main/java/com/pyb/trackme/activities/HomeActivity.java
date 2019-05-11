@@ -89,7 +89,7 @@ import retrofit2.Response;
 public class HomeActivity extends AppCompatActivity implements OnMapReadyCallback, IRemoveContactButtonClickListener {
 
     private static final int REQUEST_CODE_PICK_CONTACT = 131;
-    private final long DELAY_IN_MILLIS = 10000L;
+    private final long DELAY_IN_MILLIS = 5000L;
 
     private String loggedInName;
     private String loggedInMobile;
@@ -386,6 +386,7 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
         sharingSwitch = findViewById(R.id.sharing_switch);
         if(locationSharingStatus) {
             sharingSwitch.setChecked(true);
+            startLocationSharingService();
         }
         sharingSwitchListener = new CompoundButton.OnCheckedChangeListener() {
 
@@ -852,7 +853,9 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
         super.onResume();
         isActivityRunning = true;
         if(!ConnectionUtils.isConnectedToInternet(this) || !ConnectionUtils.isLocationServiceOn(this)) {
-            changeSwichStatusWithoutListener(false);
+//            changeSwichStatusWithoutListener(false);
+            connectionAlertTextView.setText("Turn on location and connect to internet !!");
+            connectionAlertTextView.setVisibility(View.VISIBLE);
         }
         IntentFilter filter = new IntentFilter();
         filter.addAction("android.net.conn.CONNECTIVITY_CHANGE");
@@ -872,29 +875,34 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
 
     private void initializeReceiverForNetworkEvents() {
         networkChangeReceiver = new NetworkChangeReceiver(new IConnectionListener() {
+            private final Runnable onConnectRunner = () -> {
+                if(ConnectionUtils.isConnectedToInternet(HomeActivity.this)) {
+                    connectionAlertTextView.setVisibility(View.GONE);
+                    getTrackingDetailsFromServerAndInitiliazeSocket();
+//                        if(locationSharingStatus) {
+//                            changeSwichStatusWithoutListener(true);
+//                        }
+                }
+            };
+
+            private final Runnable onDisconnectRunner = () -> {
+                if(!ConnectionUtils.isConnectedToInternet(HomeActivity.this)) {
+                    connectionAlertTextView.setText("Internet not available !!");
+                    connectionAlertTextView.setVisibility(View.VISIBLE);
+//                        changeSwichStatusWithoutListener(false);
+                }
+            };
+
             @Override
             public void onConnect() {
-                handler.postDelayed(() -> {
-                    if(ConnectionUtils.isConnectedToInternet(HomeActivity.this)) {
-                        connectionAlertTextView.setVisibility(View.GONE);
-                        getTrackingDetailsFromServerAndInitiliazeSocket();
-                        if(locationSharingStatus) {
-                            changeSwichStatusWithoutListener(true);
-                        }
-                    }
-                }, DELAY_IN_MILLIS);
+                handler.removeCallbacksAndMessages(null);
+                handler.postDelayed(onConnectRunner, DELAY_IN_MILLIS);
             }
 
             @Override
             public void onDisconnect() {
-                handler.postDelayed(() -> {
-                    if(!ConnectionUtils.isConnectedToInternet(HomeActivity.this)) {
-                        connectionAlertTextView.setText("Internet not available !!");
-                        connectionAlertTextView.setVisibility(View.VISIBLE);
-                        changeSwichStatusWithoutListener(false);
-                    }
-                }, DELAY_IN_MILLIS);
-
+                handler.removeCallbacksAndMessages(null);
+                handler.postDelayed(onDisconnectRunner, DELAY_IN_MILLIS);
             }
         });
     }
@@ -907,28 +915,33 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
 
     private void initializeReceiverForLocationServiceEvents() {
         locationServiceChangeReceiver = new LocationServiceChangeReceiver(new IConnectionListener() {
+            private final Runnable onConnectRunner = () -> {
+                if(ConnectionUtils.isLocationServiceOn(HomeActivity.this)) {
+                    locationAlertTextView.setVisibility(View.GONE);
+//                        if(locationSharingStatus) {
+////                            changeSwichStatusWithoutListener(true);
+//                        }
+                }
+            };
+
+            private final Runnable onDisconnectRunner = () -> {
+                if(!ConnectionUtils.isLocationServiceOn(HomeActivity.this)) {
+                    locationAlertTextView.setText("Turn on location service !!");
+                    locationAlertTextView.setVisibility(View.VISIBLE);
+//                        changeSwichStatusWithoutListener(false);
+                }
+            };
+
             @Override
             public void onConnect() {
-                handler.postDelayed(() -> {
-                    if(ConnectionUtils.isLocationServiceOn(HomeActivity.this)) {
-                        locationAlertTextView.setVisibility(View.GONE);
-                        if(locationSharingStatus) {
-                            changeSwichStatusWithoutListener(true);
-                        }
-                    }
-                }, DELAY_IN_MILLIS);
+                handler.removeCallbacksAndMessages(null);
+                handler.postDelayed(onConnectRunner, DELAY_IN_MILLIS);
             }
 
             @Override
             public void onDisconnect() {
-                handler.postDelayed(() -> {
-                    if(!ConnectionUtils.isLocationServiceOn(HomeActivity.this)) {
-                        locationAlertTextView.setText("Turn on location service !!");
-                        locationAlertTextView.setVisibility(View.VISIBLE);
-                        changeSwichStatusWithoutListener(false);
-                    }
-                }, DELAY_IN_MILLIS);
-
+                handler.removeCallbacksAndMessages(null);
+                handler.postDelayed(onDisconnectRunner, DELAY_IN_MILLIS);
             }
         });
     }
