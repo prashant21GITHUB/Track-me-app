@@ -87,7 +87,7 @@ public class LocationService extends Service {
         mLocationRequest.setInterval(1000); // periodic interval
         mLocationRequest.setFastestInterval(1000);
         mLocationRequest.setSmallestDisplacement(1f);
-        mLocationRequest.setPriority(LocationRequest.PRIORITY_BALANCED_POWER_ACCURACY);
+        mLocationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
         handler = new Handler();
 
         locationServiceChangeReceiver = new LocationServiceChangeReceiver(new IConnectionListener() {
@@ -101,6 +101,9 @@ public class LocationService extends Service {
 
             private final Runnable onDisconnectRunner = () -> {
                 if(!ConnectionUtils.isLocationServiceOn(LocationService.this)) {
+                    if(ConnectionUtils.isConnectedToInternet(LocationService.this)) {
+                        socketManager.sendEventMessage("notLive", loggedInMobile);
+                    }
                     stopSendingLocationUpdates();
 //                        stopForegroundNotification();
                     showSharingStoppedNotification();

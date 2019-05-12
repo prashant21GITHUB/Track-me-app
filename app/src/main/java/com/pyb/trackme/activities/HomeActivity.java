@@ -265,6 +265,18 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
             });
 
         });
+        socketManager.onEvent("notLive", (event, args) -> {
+            String mobile = (String) args[0];
+            int position = getPositionInTrackingList(mobile);
+            trackingContactsList.remove(position);
+            trackingContactsList.add(new Pair<>(mobile, false));
+            HomeActivity.this.runOnUiThread(() -> {
+                trackingListViewAdapter.notifyDataSetChanged();
+                Toast.makeText(HomeActivity.this, mobile + " is not live !!", Toast.LENGTH_SHORT).show();
+                updateNotAvailableStatusOnMap(mobile);
+            });
+
+        });
         socketManager.connect(socketConnectionListener);
         alreadyConnectedToServer = true;
     }
@@ -640,6 +652,12 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
                         HomeActivity.this.runOnUiThread(() -> {
                                     Toast.makeText(HomeActivity.this, "Stopped tracking "+ contact, Toast.LENGTH_SHORT).show();
                                     trackingListViewAdapter.notifyDataSetChanged();
+                                    Marker marker = currLocationMarkerMap.get(contact);
+                                    if(marker != null) {
+                                        marker.hideInfoWindow();
+                                        marker.setSnippet("Last location");
+                                        marker.showInfoWindow();
+                                    }
                                 }
                         );
                         unsubscribedContacts.add(contact);
