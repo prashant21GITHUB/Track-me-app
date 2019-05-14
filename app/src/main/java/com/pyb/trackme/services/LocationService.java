@@ -298,8 +298,8 @@ public class LocationService extends Service {
 //            wakeLock.release();
 //        }
         //token passed as null, so that it can remove all runners
-        handler.removeCallbacksAndMessages(null);
         socketManager.sendEventMessage("stopPublish", loggedInMobile);
+        handler.removeCallbacksAndMessages(null);
         stopSendingLocationUpdates();
         socketManager.softDisconnect(socketConnectionListener);
         stopForegroundNotification();

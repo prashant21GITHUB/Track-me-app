@@ -103,6 +103,6 @@
     </RelativeLayout>
 
 
-    <include layout="@layout/drawer_layout"/>
+    <include layout="@layout/drawer_layout_2"/>
 
 </android.support.v4.widget.DrawerLayout>

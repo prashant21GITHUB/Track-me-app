@@ -37,6 +37,7 @@ import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.CompoundButton;
+import android.widget.ExpandableListView;
 import android.widget.ImageButton;
 import android.widget.ListView;
 import android.widget.ProgressBar;
@@ -55,7 +56,9 @@ import com.google.android.gms.maps.model.MarkerOptions;
 import com.pyb.trackme.R;
 import com.pyb.trackme.adapter.SharingContactListViewAdapter;
 import com.pyb.trackme.TrackMeApplication;
+import com.pyb.trackme.adapter.SharingExpandableListViewAdapter;
 import com.pyb.trackme.adapter.TrackingContactsListViewAdapter;
+import com.pyb.trackme.adapter.TrackingExpandableListViewAdapter;
 import com.pyb.trackme.cache.TrackDetailsDB;
 import com.pyb.trackme.receiver.LocationServiceChangeReceiver;
 import com.pyb.trackme.receiver.NetworkChangeReceiver;
@@ -96,6 +99,8 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
     private DrawerLayout mDrawerLayout;
     private ListView sharingListView;
     private ListView trackingListView;
+    private ExpandableListView sharingContactsExpandableListView;
+    private ExpandableListView trackingContactsExpandableListView;
     private List<String> sharingContactsList;
     private List<Pair<String, Boolean>> trackingContactsList;
     private Switch sharingSwitch;
@@ -105,6 +110,8 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
     private String LOGIN_PREF_NAME;
     private ArrayAdapter<String> sharingListViewAdapter;
     private ArrayAdapter<Pair<String, Boolean>> trackingListViewAdapter;
+    private SharingExpandableListViewAdapter sharingExpandableListViewAdapter;
+    private TrackingExpandableListViewAdapter trackingExpandableListViewAdapter;
     private ImageButton addContactBtn;
     private ProgressBar progressBar;
     private boolean locationSharingStatus;
@@ -142,6 +149,8 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
         locationAlertTextView = findViewById(R.id.alert_location);
         sharingListView =  findViewById(R.id.sharing_list_view);
         trackingListView = findViewById(R.id.tracking_list_view);
+        sharingContactsExpandableListView = findViewById(R.id.expandable_sharing_contacts_view);
+        trackingContactsExpandableListView = findViewById(R.id.expandable_tracking_contacts_view);
         swipeRefreshLayout = findViewById(R.id.pullToRefresh);
         attachItemClickListeners();
 
@@ -187,6 +196,28 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
             @Override
             public boolean onItemLongClick(AdapterView<?> parent, View view, int position, long id) {
                 showDialogToStartStopTracking(position);
+                return true;
+            }
+        });
+        trackingContactsExpandableListView.setOnItemLongClickListener(new AdapterView.OnItemLongClickListener() {
+            @Override
+            public boolean onItemLongClick(AdapterView<?> parent, View view, int position, long id) {
+                showDialogToStartStopTracking(position);
+                return true;
+            }
+        });
+        trackingContactsExpandableListView.setOnChildClickListener(new ExpandableListView.OnChildClickListener() {
+            //In our case, groupPosition is always 1 as there is 1 group ony
+            @Override
+            public boolean onChildClick(ExpandableListView parent, View v, int groupPosition, int childPosition, long id) {
+                mDrawerLayout.closeDrawer(Gravity.START, true);
+                String contact = trackingContactsList.get(childPosition).first;
+                currentFocussedContactOnMap = contact;
+                Marker marker = currLocationMarkerMap.get(contact);
+                if(marker != null) {
+                    googleMap.animateCamera(CameraUpdateFactory.newLatLngZoom(marker.getPosition(), 16));
+                    marker.showInfoWindow();
+                }
                 return true;
             }
         });
@@ -249,6 +280,7 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
                 HomeActivity.this.runOnUiThread(() -> {
                     Toast.makeText(HomeActivity.this, mobile + " started sharing his location", Toast.LENGTH_SHORT).show();
                     trackingListViewAdapter.notifyDataSetChanged();
+                    trackingExpandableListViewAdapter.notifyDataSetChanged();
                 });
 
             }
@@ -260,6 +292,7 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
             trackingContactsList.add(new Pair<>(mobile, false));
             HomeActivity.this.runOnUiThread(() -> {
                 trackingListViewAdapter.notifyDataSetChanged();
+                trackingExpandableListViewAdapter.notifyDataSetChanged();
                 Toast.makeText(HomeActivity.this, mobile + " has stopped sharing location !!", Toast.LENGTH_SHORT).show();
                 updateNotAvailableStatusOnMap(mobile);
             });
@@ -272,6 +305,7 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
             trackingContactsList.add(new Pair<>(mobile, false));
             HomeActivity.this.runOnUiThread(() -> {
                 trackingListViewAdapter.notifyDataSetChanged();
+                trackingExpandableListViewAdapter.notifyDataSetChanged();
                 Toast.makeText(HomeActivity.this, mobile + " is not live !!", Toast.LENGTH_SHORT).show();
                 updateNotAvailableStatusOnMap(mobile);
             });
@@ -327,9 +361,13 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
         }
         sharingContactsList.addAll(TrackDetailsDB.db().getContactsToShareLocation());
         sharingListViewAdapter = new SharingContactListViewAdapter(this, sharingContactsList, this);
+        sharingExpandableListViewAdapter = new SharingExpandableListViewAdapter(this, sharingContactsList, this);
         trackingListViewAdapter = new TrackingContactsListViewAdapter(this, trackingContactsList);
+        trackingExpandableListViewAdapter = new TrackingExpandableListViewAdapter(this, trackingContactsList);
         sharingListView.setAdapter(sharingListViewAdapter);
         trackingListView.setAdapter(trackingListViewAdapter);
+        sharingContactsExpandableListView.setAdapter(sharingExpandableListViewAdapter);
+        trackingContactsExpandableListView.setAdapter(trackingExpandableListViewAdapter);
     }
 
     private void showDialogToRemoveContact(int position) {
@@ -373,6 +411,7 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
                                 TrackDetailsDB.db().deleteContactFromSharingList(sharingContactsList.get(position));
                                 sharingContactsList.remove(position);
                                 sharingListViewAdapter.notifyDataSetChanged();
+                                sharingExpandableListViewAdapter.notifyDataSetChanged();
                                 if(sharingContactsList.isEmpty()) {
                                     stopLocationSharingService();
                                     sharingSwitch.setChecked(false);
@@ -652,6 +691,7 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
                         HomeActivity.this.runOnUiThread(() -> {
                                     Toast.makeText(HomeActivity.this, "Stopped tracking "+ contact, Toast.LENGTH_SHORT).show();
                                     trackingListViewAdapter.notifyDataSetChanged();
+                                    trackingExpandableListViewAdapter.notifyDataSetChanged();
                                     Marker marker = currLocationMarkerMap.get(contact);
                                     if(marker != null) {
                                         marker.hideInfoWindow();
@@ -684,6 +724,7 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
                 e.printStackTrace();
             }
             trackingListViewAdapter.notifyDataSetChanged();
+            trackingExpandableListViewAdapter.notifyDataSetChanged();
 
         });
     }
@@ -1069,6 +1110,7 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
 
                         sharingContactsList.add(number);
                         sharingListViewAdapter.notifyDataSetChanged();
+                        sharingExpandableListViewAdapter.notifyDataSetChanged();
                         TrackDetailsDB.db().addContactToShareLocation(number);
                         Toast.makeText(HomeActivity.this, "Contact added to the list !!", Toast.LENGTH_SHORT).show();
                     } else {
