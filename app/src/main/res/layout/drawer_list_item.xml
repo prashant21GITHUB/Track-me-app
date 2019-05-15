@@ -46,7 +46,6 @@
         android:paddingTop="2dp"
         android:visibility="gone"
         app:srcCompat="@drawable/delete_3" />
-
     <!--<Switch-->
         <!--android:id="@+id/switch1"-->
         <!--android:layout_width="wrap_content"-->
