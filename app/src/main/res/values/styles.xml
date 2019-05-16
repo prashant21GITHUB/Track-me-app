@@ -14,7 +14,6 @@
 
     <style name="SwitchTheme" parent="Theme.AppCompat">
         <item name="android:textColorPrimaryDisableOnly">#00838f</item>
-        <item name="colorAccent">#e92f63</item>
+        <item name="colorControlActivated">#e92f63</item>
     </style>
-
 </resources>

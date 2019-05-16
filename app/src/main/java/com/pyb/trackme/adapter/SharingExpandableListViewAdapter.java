@@ -23,7 +23,7 @@ public class SharingExpandableListViewAdapter extends BaseExpandableListAdapter 
     private final Context context;
     private final IRemoveContactButtonClickListener removeContactButtonClickListener;
     private final List<String> values;
-    private final String GROUP_HEADER = "Sharing location with";
+    private final String GROUP_HEADER = "Contacts";
 
     public SharingExpandableListViewAdapter(Context context, List<String> values,
                                             IRemoveContactButtonClickListener removeContactButtonClickListener) {
@@ -106,6 +106,11 @@ public class SharingExpandableListViewAdapter extends BaseExpandableListAdapter 
 
     @Override
     public boolean isChildSelectable(int groupPosition, int childPosition) {
+        return true;
+    }
+
+    @Override
+    public boolean areAllItemsEnabled() {
         return true;
     }
 }

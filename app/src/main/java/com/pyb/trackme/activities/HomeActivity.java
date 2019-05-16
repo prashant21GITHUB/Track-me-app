@@ -207,10 +207,27 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
                 return true;
             }
         });
+        trackingContactsExpandableListView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+            @Override
+            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+                mDrawerLayout.closeDrawer(Gravity.START, true);
+                String contact = trackingContactsList.get(position).first;
+                currentFocussedContactOnMap = contact;
+                Marker marker = currLocationMarkerMap.get(contact);
+                if (marker != null) {
+                    googleMap.animateCamera(CameraUpdateFactory.newLatLngZoom(marker.getPosition(), 16));
+                    marker.showInfoWindow();
+                }
+            }
+        });
         trackingContactsExpandableListView.setOnChildClickListener(new ExpandableListView.OnChildClickListener() {
             //In our case, groupPosition is always 1 as there is 1 group ony
             @Override
             public boolean onChildClick(ExpandableListView parent, View v, int groupPosition, int childPosition, long id) {
+                Toast.makeText(
+                        getApplicationContext(),
+                        "clicked", Toast.LENGTH_SHORT)
+                        .show();
                 mDrawerLayout.closeDrawer(Gravity.START, true);
                 String contact = trackingContactsList.get(childPosition).first;
                 currentFocussedContactOnMap = contact;

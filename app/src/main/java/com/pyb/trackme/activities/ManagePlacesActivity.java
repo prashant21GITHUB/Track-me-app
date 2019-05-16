@@ -21,7 +21,7 @@ public class ManagePlacesActivity extends AppCompatActivity {
             @Override
             public void onClick(View v) {
 
-                PlacePicker.IntentBuilder builder = new PlacePicker.IntentBuilder();
+//                PlacePicker.IntentBuilder builder = new PlacePicker.IntentBuilder();
 
             }
         });

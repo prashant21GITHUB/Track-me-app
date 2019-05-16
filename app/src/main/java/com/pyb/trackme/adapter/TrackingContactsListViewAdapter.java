@@ -38,15 +38,15 @@ public class TrackingContactsListViewAdapter extends ArrayAdapter<Pair<String, B
         Pair<String, Boolean> numberWithStatusPair = valuesWithLiveStatus.get(position);
         TextView number = convertView.findViewById(R.id.tracked_number);
         number.setText(numberWithStatusPair.first);
-        ImageView liveImageView = convertView.findViewById(R.id.live_image);
-        ImageView noLiveImageView = convertView.findViewById(R.id.no_live_image);
-        if(numberWithStatusPair.second) {
-            liveImageView.setVisibility(View.VISIBLE);
-            noLiveImageView.setVisibility(View.GONE);
-        } else {
-            liveImageView.setVisibility(View.GONE);
-            noLiveImageView.setVisibility(View.VISIBLE);
-        }
+//        ImageView liveImageView = convertView.findViewById(R.id.live_image);
+//        ImageView noLiveImageView = convertView.findViewById(R.id.no_live_image);
+//        if(numberWithStatusPair.second) {
+//            liveImageView.setVisibility(View.VISIBLE);
+//            noLiveImageView.setVisibility(View.GONE);
+//        } else {
+//            liveImageView.setVisibility(View.GONE);
+//            noLiveImageView.setVisibility(View.VISIBLE);
+//        }
         return convertView;
     }
 }
