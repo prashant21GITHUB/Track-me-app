@@ -1,6 +1,5 @@
 package com.pyb.trackme.socket;
 
-import android.os.RemoteException;
 import android.util.Log;
 
 import com.github.nkzawa.emitter.Emitter;
@@ -14,7 +13,6 @@ import org.json.JSONObject;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
 
 import static com.pyb.trackme.restclient.ServiceURL.BASE_URL;
 
@@ -23,7 +21,7 @@ public class SocketManager {
     private static SocketManager INSTANCE;
     private Socket mSocket;
     private int socketUsers;
-    private List<IConnectionListener> connectionListeners;
+    private List<ISocketConnectionListener> connectionListeners;
 
     private SocketManager() {
         try {
@@ -41,15 +39,15 @@ public class SocketManager {
         return INSTANCE;
     }
 
-    public void connect(final IConnectionListener connectionListener) {
+    public void connect(final ISocketConnectionListener connectionListener) {
         connectionListeners.add(connectionListener);
         if(!mSocket.connected()) {
             mSocket.on(Socket.EVENT_CONNECT, new Emitter.Listener() {
                 @Override
                 public void call(Object... args) {
                     Log.d("TrackMe_SocketManager", "Connected");
-                    for(IConnectionListener listener : connectionListeners){
-                        listener.onConnect();
+                    for(ISocketConnectionListener listener : connectionListeners){
+                        listener.onConnect(false);
                     }
                 }
             });
@@ -57,20 +55,20 @@ public class SocketManager {
                 @Override
                 public void call(Object... args) {
                     Log.d("TrackMe_SocketManager", "Disconnected");
-                    for(IConnectionListener listener : connectionListeners){
+                    for(ISocketConnectionListener listener : connectionListeners){
                         listener.onDisconnect();
                     }
                 }
             });
             mSocket.connect();
         } else {
-            connectionListener.onConnect();
+            connectionListener.onConnect(true);
         }
         socketUsers++;
     }
 
     //TODO : connection listener should not be passed as null, if it happens check the logic from where it has been passed as null.
-    public void softDisconnect(IConnectionListener connectionListener) {
+    public void softDisconnect(ISocketConnectionListener connectionListener) {
         if(socketUsers == 1) {
             hardDisconnect();
         }

@@ -1,7 +1,6 @@
 package com.pyb.trackme.services;
 
 import android.Manifest;
-import android.annotation.SuppressLint;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
@@ -15,12 +14,10 @@ import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
-import android.os.PowerManager;
 import android.support.v4.app.NotificationCompat;
 import android.support.v4.app.NotificationManagerCompat;
 import android.support.v4.content.ContextCompat;
 import android.util.Log;
-import android.view.View;
 
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationCallback;
@@ -28,14 +25,14 @@ import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationResult;
 import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.maps.model.LatLng;
-import com.pyb.trackme.activities.HomeActivity;
 import com.pyb.trackme.R;
 import com.pyb.trackme.TrackMeApplication;
-import com.pyb.trackme.cache.AppConstants;
+import com.pyb.trackme.activities.HomeActivity;
 import com.pyb.trackme.cache.TrackDetailsDB;
 import com.pyb.trackme.receiver.LocationServiceChangeReceiver;
 import com.pyb.trackme.receiver.NetworkChangeReceiver;
 import com.pyb.trackme.socket.IConnectionListener;
+import com.pyb.trackme.socket.ISocketConnectionListener;
 import com.pyb.trackme.socket.SocketManager;
 import com.pyb.trackme.utils.ConnectionUtils;
 
@@ -60,7 +57,7 @@ public class LocationService extends Service {
     private String NOTIFICATION_CHANNEL_ID = "TrackMe_Notification_Channel";
     private final String TAG = "TrackMe_LocationService";
     private String LOGIN_PREF_NAME;
-    private IConnectionListener socketConnectionListener;
+    private ISocketConnectionListener socketConnectionListener;
     private NetworkChangeReceiver networkChangeReceiver;
     private LocationServiceChangeReceiver locationServiceChangeReceiver;
     private Handler handler;
@@ -211,11 +208,13 @@ public class LocationService extends Service {
 
     private boolean socketConnected;
     private void connectToServer() {
-        socketConnectionListener = new IConnectionListener() {
+        socketConnectionListener = new ISocketConnectionListener() {
             @Override
-            public void onConnect() {
+            public void onConnect(boolean alreadyConnected) {
                 socketConnected = true;
-                socketManager.sendEventMessage("connectedMobile", loggedInMobile);
+                if(!alreadyConnected) {
+                    socketManager.sendEventMessage("connectedMobile", loggedInMobile);
+                }
                 sendEventToPublishLocationData();
                 handler.post(new Runnable() {
                     @Override

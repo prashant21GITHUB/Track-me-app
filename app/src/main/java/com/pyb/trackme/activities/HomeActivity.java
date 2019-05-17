@@ -72,6 +72,7 @@ import com.pyb.trackme.services.LocationService;
 import com.pyb.trackme.socket.IAckListener;
 import com.pyb.trackme.socket.IConnectionListener;
 import com.pyb.trackme.socket.IEventListener;
+import com.pyb.trackme.socket.ISocketConnectionListener;
 import com.pyb.trackme.socket.SocketManager;
 import com.pyb.trackme.utils.ConnectionUtils;
 
@@ -121,10 +122,12 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
     private LocationServiceChangeReceiver locationServiceChangeReceiver;
     private SwipeRefreshLayout swipeRefreshLayout;
     private String currentFocussedContactOnMap;
-    private IConnectionListener socketConnectionListener = new IConnectionListener() {
+    private ISocketConnectionListener socketConnectionListener = new ISocketConnectionListener() {
         @Override
-        public void onConnect() {
-            socketManager.sendEventMessage("connectedMobile", loggedInMobile);
+        public void onConnect(boolean alreadyConnected) {
+            if(!alreadyConnected) {
+                socketManager.sendEventMessage("connectedMobile", loggedInMobile);
+            }
             subscribeToTrackContacts();
         }
 
