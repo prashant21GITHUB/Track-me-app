@@ -2,21 +2,19 @@
 <RelativeLayout   xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
-    android:layout_height="wrap_content"
+    android:layout_height="35dp"
     android:clickable="true">
 
     <TextView
         android:id="@+id/tracked_number"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:textAppearance="?android:attr/textAppearanceListItemSmall"
         android:textColor="#444"
         android:text="number"
         android:clickable="true"
         android:textSize="18sp"
-        android:layout_marginLeft="10dp"
-        android:background="?android:attr/activatedBackgroundIndicator"
-        android:minHeight="?android:attr/listPreferredItemHeightSmall"/>
+        android:layout_centerVertical="true"
+        android:layout_marginLeft="10dp" />
 
 
     <ImageView
@@ -24,6 +22,7 @@
         android:layout_width="20dp"
         android:layout_height="25dp"
         android:scaleType="centerInside"
+        android:layout_centerVertical="true"
         android:layout_alignParentEnd="true"
         android:layout_marginRight="10dp"
         android:src="@drawable/delete_4" />
@@ -32,10 +31,21 @@
         android:id="@+id/per_contact_switch"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_toLeftOf="@+id/delete_contact_image"
-        android:layout_marginRight="20dp"
+        android:layout_centerVertical="true"
+        android:layout_toLeftOf="@+id/focus"
+        android:layout_marginRight="10dp"
     />
 
+    <ImageView
+        android:id="@+id/focus"
+        android:layout_width="20dp"
+        android:layout_height="25dp"
+        android:scaleType="centerInside"
+        android:layout_centerVertical="true"
+        android:layout_toLeftOf="@+id/delete_contact_image"
+        android:layout_marginRight="10dp"
+        android:visibility="gone"
+        android:src="@drawable/focus_2" />
 
     <!--<Switch-->
         <!--android:id="@+id/switch1"-->

@@ -2,5 +2,7 @@ package com.pyb.trackme.activities;
 
 public interface IRemoveContactButtonClickListener {
 
-    void onRemoveContactButtonClick(int position);
+    void onRemoveSharingContactButtonClick(int position);
+
+    void onRemoveTrackingContactButtonClick(int position);
 }

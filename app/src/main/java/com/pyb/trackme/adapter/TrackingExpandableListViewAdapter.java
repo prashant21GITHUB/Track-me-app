@@ -2,7 +2,6 @@ package com.pyb.trackme.adapter;
 
 import android.content.Context;
 import android.graphics.Color;
-import android.util.Pair;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -11,18 +10,25 @@ import android.widget.ImageView;
 import android.widget.TextView;
 
 import com.pyb.trackme.R;
+import com.pyb.trackme.activities.IRemoveContactButtonClickListener;
 
 import java.util.List;
 
 public class TrackingExpandableListViewAdapter extends BaseExpandableListAdapter {
 
     private final Context context;
-    private final List<Pair<String, Boolean>> valuesWithLiveStatus;
+    private final List<String> valuesWithLiveStatus;
     private final String GROUP_HEADER = "Contacts";
+    private final IRemoveContactButtonClickListener removeContactButtonClickListener;
+    private final IOnTrackingContactFocusListener onFocusListener;
 
-    public TrackingExpandableListViewAdapter(Context context, List<Pair<String, Boolean>> valuesWithLiveStatus) {
+    public TrackingExpandableListViewAdapter(Context context, List<String> valuesWithLiveStatus,
+                                             IRemoveContactButtonClickListener removeContactButtonClickListener,
+                                             IOnTrackingContactFocusListener onFocusListener) {
         this.context = context;
         this.valuesWithLiveStatus = valuesWithLiveStatus;
+        this.removeContactButtonClickListener = removeContactButtonClickListener;
+        this.onFocusListener = onFocusListener;
     }
 
     @Override
@@ -88,18 +94,25 @@ public class TrackingExpandableListViewAdapter extends BaseExpandableListAdapter
         if(childPosition % 2 == 0) {
             convertView.setBackgroundColor(Color.LTGRAY);
         }
-        Pair<String, Boolean> numberWithStatusPair = valuesWithLiveStatus.get(childPosition);
-        TextView number = convertView.findViewById(R.id.tracked_number);
-        number.setText(numberWithStatusPair.first);
-//        ImageView liveImageView = convertView.findViewById(R.id.live_image);
-//        ImageView noLiveImageView = convertView.findViewById(R.id.no_live_image);
-//        if(numberWithStatusPair.second) {
-//            liveImageView.setVisibility(View.VISIBLE);
-//            noLiveImageView.setVisibility(View.GONE);
-//        } else {
-//            liveImageView.setVisibility(View.GONE);
-//            noLiveImageView.setVisibility(View.VISIBLE);
-//        }
+        String number = valuesWithLiveStatus.get(childPosition);
+        TextView numberView = convertView.findViewById(R.id.tracked_number);
+        numberView.setText(number);
+        ImageView focusBtn = convertView.findViewById(R.id.focus);
+        focusBtn.setVisibility(View.VISIBLE);
+        focusBtn.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                onFocusListener.onTrackingContactFocus(childPosition);
+            }
+        });
+        ImageView removeContactBtn = convertView.findViewById(R.id.delete_contact_image);
+        removeContactBtn.setVisibility(View.VISIBLE);
+        removeContactBtn.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                removeContactButtonClickListener.onRemoveTrackingContactButtonClick(childPosition);
+            }
+        });
         return convertView;
     }
 

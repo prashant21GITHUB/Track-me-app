@@ -2,8 +2,6 @@ package com.pyb.trackme.adapter;
 
 import android.content.Context;
 import android.graphics.Color;
-import android.graphics.Typeface;
-import android.util.Pair;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -14,9 +12,7 @@ import android.widget.TextView;
 import com.pyb.trackme.R;
 import com.pyb.trackme.activities.IRemoveContactButtonClickListener;
 
-import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 
 public class SharingExpandableListViewAdapter extends BaseExpandableListAdapter {
 
@@ -91,12 +87,13 @@ public class SharingExpandableListViewAdapter extends BaseExpandableListAdapter 
         if(childPosition % 2 == 0) {
             rowView.setBackgroundColor(Color.LTGRAY);
         }
+        rowView.findViewById(R.id.focus).setVisibility(View.GONE);
         ImageView removeContactBtn = rowView.findViewById(R.id.delete_contact_image);
         removeContactBtn.setVisibility(View.VISIBLE);
         removeContactBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                removeContactButtonClickListener.onRemoveContactButtonClick(childPosition);
+                removeContactButtonClickListener.onRemoveSharingContactButtonClick(childPosition);
             }
         });
         TextView number = rowView.findViewById(R.id.tracked_number);

@@ -35,11 +35,10 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.AdapterView;
-import android.widget.ArrayAdapter;
 import android.widget.CompoundButton;
 import android.widget.ExpandableListView;
 import android.widget.ImageButton;
-import android.widget.ListView;
+import android.widget.ImageView;
 import android.widget.ProgressBar;
 import android.widget.Switch;
 import android.widget.TextView;
@@ -54,10 +53,9 @@ import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.pyb.trackme.R;
-import com.pyb.trackme.adapter.SharingContactListViewAdapter;
 import com.pyb.trackme.TrackMeApplication;
+import com.pyb.trackme.adapter.IOnTrackingContactFocusListener;
 import com.pyb.trackme.adapter.SharingExpandableListViewAdapter;
-import com.pyb.trackme.adapter.TrackingContactsListViewAdapter;
 import com.pyb.trackme.adapter.TrackingExpandableListViewAdapter;
 import com.pyb.trackme.cache.TrackDetailsDB;
 import com.pyb.trackme.receiver.LocationServiceChangeReceiver;
@@ -65,7 +63,7 @@ import com.pyb.trackme.receiver.NetworkChangeReceiver;
 import com.pyb.trackme.restclient.MobileRequest;
 import com.pyb.trackme.restclient.RestClient;
 import com.pyb.trackme.restclient.ServiceResponse;
-import com.pyb.trackme.restclient.ShareLocationRequest;
+import com.pyb.trackme.restclient.AddRemoveContactRequest;
 import com.pyb.trackme.restclient.TrackingDetailsResponse;
 import com.pyb.trackme.restclient.TrackingServiceClient;
 import com.pyb.trackme.services.LocationService;
@@ -90,9 +88,10 @@ import retrofit2.Callback;
 import retrofit2.Response;
 
 
-public class HomeActivity extends AppCompatActivity implements OnMapReadyCallback, IRemoveContactButtonClickListener {
+public class HomeActivity extends AppCompatActivity implements OnMapReadyCallback, IRemoveContactButtonClickListener, IOnTrackingContactFocusListener {
 
-    private static final int REQUEST_CODE_PICK_CONTACT = 131;
+    private static final int REQUEST_CODE_PICK_SHARE_CONTACT = 131;
+    private static final int REQUEST_CODE_PICK_TRACK_CONTACT = 133;
     private final long DELAY_IN_MILLIS = 5000L;
 
     private String loggedInName;
@@ -103,7 +102,7 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
     private ExpandableListView sharingContactsExpandableListView;
     private ExpandableListView trackingContactsExpandableListView;
     private List<String> sharingContactsList;
-    private List<Pair<String, Boolean>> trackingContactsList;
+    private List<String> trackingContactsList;
     private Switch sharingSwitch;
     private CompoundButton.OnCheckedChangeListener sharingSwitchListener;
     private String NOTIFICATION_CHANNEL_ID = "TrackMe_Notification_Channel";
@@ -169,7 +168,7 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
         }
 
         initializeLocationSharingSwitch();
-        intializeDrawerLayout(toolbar);
+        initializeDrawerLayout(toolbar);
         initializeAddContactBtn();
         initializeMap();
         initializeSwipeRefreshLayout();
@@ -214,7 +213,7 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
             @Override
             public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
                 mDrawerLayout.closeDrawer(Gravity.START, true);
-                String contact = trackingContactsList.get(position).first;
+                String contact = trackingContactsList.get(position);
                 currentFocussedContactOnMap = contact;
                 Marker marker = currLocationMarkerMap.get(contact);
                 if (marker != null) {
@@ -232,7 +231,7 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
                         "clicked", Toast.LENGTH_SHORT)
                         .show();
                 mDrawerLayout.closeDrawer(Gravity.START, true);
-                String contact = trackingContactsList.get(childPosition).first;
+                String contact = trackingContactsList.get(childPosition);
                 currentFocussedContactOnMap = contact;
                 Marker marker = currLocationMarkerMap.get(contact);
                 if (marker != null) {
@@ -245,7 +244,7 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
     }
 
     private void showDialogToStartStopTracking(int position) {
-        String contact = trackingContactsList.get(position).first;
+        String contact = trackingContactsList.get(position);
         AlertDialog.Builder builder = new AlertDialog.Builder(HomeActivity.this)
                 .setTitle("Track")
                 .setMessage(contact)
@@ -294,9 +293,9 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
                 }
                 if (!unsubscribedContacts.contains(mobile)) {
                     subscribeToContact(mobile);
-                    trackingContactsList.add(new Pair(mobile, true));
+                    trackingContactsList.add(mobile);
                 } else {
-                    trackingContactsList.add(new Pair(mobile, false));
+                    trackingContactsList.add(mobile);
                 }
                 HomeActivity.this.runOnUiThread(() -> {
                     Toast.makeText(HomeActivity.this, mobile + " started sharing his location", Toast.LENGTH_SHORT).show();
@@ -311,7 +310,7 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
             int position = getPositionInTrackingList(mobile);
             if(position == -1) return;
             trackingContactsList.remove(position);
-            trackingContactsList.add(new Pair<>(mobile, false));
+            trackingContactsList.add(mobile);
             HomeActivity.this.runOnUiThread(() -> {
 //                trackingListViewAdapter.notifyDataSetChanged();
                 trackingExpandableListViewAdapter.notifyDataSetChanged();
@@ -325,7 +324,7 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
             int position = getPositionInTrackingList(mobile);
             if(position == -1) return;
             trackingContactsList.remove(position);
-            trackingContactsList.add(new Pair<>(mobile, false));
+            trackingContactsList.add(mobile);
             HomeActivity.this.runOnUiThread(() -> {
 //                trackingListViewAdapter.notifyDataSetChanged();
                 trackingExpandableListViewAdapter.notifyDataSetChanged();
@@ -343,9 +342,7 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
         addContactBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                Intent pickContactIntent = new Intent(Intent.ACTION_PICK, Uri.parse("content://contacts"));
-                pickContactIntent.setType(ContactsContract.CommonDataKinds.Phone.CONTENT_TYPE); // Show user only contacts w/ phone numbers
-                startActivityForResult(pickContactIntent, REQUEST_CODE_PICK_CONTACT);
+//                openSelectContactActivity();
             }
         });
     }
@@ -367,36 +364,56 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
     }
 
 
-    private void intializeDrawerLayout(Toolbar toolbar) {
+    private void initializeDrawerLayout(Toolbar toolbar) {
         mDrawerLayout = findViewById(R.id.drawer_layout);
         ((TextView) mDrawerLayout.findViewById(R.id.drawer_header)).setText(loggedInName);
+        ImageView addShareContactBtn = findViewById(R.id.add_share_contact_btn);
+        addShareContactBtn.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                openSelectContactActivity(REQUEST_CODE_PICK_SHARE_CONTACT);
+            }
+        });
+        ImageView addTrackContactBtn = findViewById(R.id.add_track_contact_btn);
+        addTrackContactBtn.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                openSelectContactActivity(REQUEST_CODE_PICK_TRACK_CONTACT);
+            }
+        });
         ActionBarDrawerToggle toggle = new ActionBarDrawerToggle(this, mDrawerLayout, toolbar, R.string.navigation_drawer_open, R.string.navigation_drawer_close);
         mDrawerLayout.addDrawerListener(toggle);
         toggle.setDrawerIndicatorEnabled(true);
         toggle.syncState();
     }
 
+    private void openSelectContactActivity(int REQUEST_CODE_PICK_CONTACT) {
+        Intent pickContactIntent = new Intent(Intent.ACTION_PICK, Uri.parse("content://contacts"));
+        pickContactIntent.setType(ContactsContract.CommonDataKinds.Phone.CONTENT_TYPE); // Show user only contacts w/ phone numbers
+        startActivityForResult(pickContactIntent, REQUEST_CODE_PICK_CONTACT);
+    }
+
     private void initializeSharingAndTrackingContactsList() {
         sharingContactsList = new ArrayList<>();
         trackingContactsList = new ArrayList<>();
         for (String contact : TrackDetailsDB.db().getContactsToTrackLocation()) {
-            trackingContactsList.add(new Pair<>(contact, false));
+            trackingContactsList.add(contact);
         }
         sharingContactsList.addAll(TrackDetailsDB.db().getContactsToShareLocation());
 //        sharingListViewAdapter = new SharingContactListViewAdapter(this, sharingContactsList, this);
         sharingExpandableListViewAdapter = new SharingExpandableListViewAdapter(this, sharingContactsList, this);
 //        trackingListViewAdapter = new TrackingContactsListViewAdapter(this, trackingContactsList);
-        trackingExpandableListViewAdapter = new TrackingExpandableListViewAdapter(this, trackingContactsList);
+        trackingExpandableListViewAdapter = new TrackingExpandableListViewAdapter(this, trackingContactsList, this, this);
 //        sharingListView.setAdapter(sharingListViewAdapter);
 //        trackingListView.setAdapter(trackingListViewAdapter);
         sharingContactsExpandableListView.setAdapter(sharingExpandableListViewAdapter);
         trackingContactsExpandableListView.setAdapter(trackingExpandableListViewAdapter);
     }
 
-    private void showDialogToRemoveContact(int position) {
+    private void showDialogToRemoveSharingContact(int position) {
         AlertDialog.Builder builder = new AlertDialog.Builder(HomeActivity.this)
                 .setTitle("Confirm")
-                .setMessage("Do not share location with " + sharingContactsList.get(position) + " ?")
+                .setMessage("Stop location sharing with " + sharingContactsList.get(position) + " ?")
                 .setCancelable(true)
                 .setPositiveButton("Yes", new DialogInterface.OnClickListener() {
                     @Override
@@ -414,9 +431,30 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
         alert.show();
     }
 
+    private void showDialogToRemoveTrackingContact(int position) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(HomeActivity.this)
+                .setTitle("Confirm")
+                .setMessage("Stop tracking " + trackingContactsList.get(position) + " ?")
+                .setCancelable(true)
+                .setPositiveButton("Yes", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        deleteContactFromTrackingList(position);
+                    }
+                })
+                .setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        return;
+                    }
+                });
+        AlertDialog alert = builder.create();
+        alert.show();
+    }
+
     private void deleteContactFromSharingList(int position) {
         TrackingServiceClient client = RestClient.getTrackingServiceClient();
-        client.deleteContactFromSharingLocationList(new ShareLocationRequest(loggedInMobile, sharingContactsList.get(position), ""))
+        client.deleteContactFromSharingLocationList(new AddRemoveContactRequest(loggedInMobile, sharingContactsList.get(position), ""))
                 .enqueue(new Callback<ServiceResponse>() {
                     @Override
                     public void onResponse(Call<ServiceResponse> call, Response<ServiceResponse> response) {
@@ -446,7 +484,36 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
                         } else {
                             Toast.makeText(HomeActivity.this, "Internal error, " + response.message(), Toast.LENGTH_SHORT).show();
                         }
-                        mDrawerLayout.closeDrawer(Gravity.START, true);
+//                        mDrawerLayout.closeDrawer(Gravity.START, true);
+                    }
+
+                    @Override
+                    public void onFailure(Call<ServiceResponse> call, Throwable t) {
+                        Toast.makeText(HomeActivity.this, "Internal error, " + t.getMessage(), Toast.LENGTH_SHORT).show();
+                    }
+                });
+    }
+
+    private void deleteContactFromTrackingList(int position) {
+        TrackingServiceClient client = RestClient.getTrackingServiceClient();
+        client.deleteTrackingContact(new AddRemoveContactRequest(loggedInMobile, trackingContactsList.get(position), ""))
+                .enqueue(new Callback<ServiceResponse>() {
+                    @Override
+                    public void onResponse(Call<ServiceResponse> call, Response<ServiceResponse> response) {
+                        if (response.isSuccessful()) {
+                            ServiceResponse serviceResponse = response.body();
+                            if (serviceResponse.isSuccess()) {
+                                unsubscribeToContact(trackingContactsList.get(position));
+                                TrackDetailsDB.db().deleteContactFromTrackingList(trackingContactsList.get(position));
+                                trackingContactsList.remove(position);
+                                trackingExpandableListViewAdapter.notifyDataSetChanged();
+                                Toast.makeText(HomeActivity.this, "Contact removed from tracking list", Toast.LENGTH_SHORT).show();
+                            } else {
+                                Toast.makeText(HomeActivity.this, "Unable to remove: " + serviceResponse.getMessage(), Toast.LENGTH_SHORT).show();
+                            }
+                        } else {
+                            Toast.makeText(HomeActivity.this, "Internal error, " + response.message(), Toast.LENGTH_SHORT).show();
+                        }
                     }
 
                     @Override
@@ -638,16 +705,16 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
 
 
     private void subscribeToTrackContacts() {
-        for (final Pair<String, Boolean> contactLiveStatusPair : trackingContactsList) {
-            subscribeToContact(contactLiveStatusPair.first);
+        for (String contact : trackingContactsList) {
+            subscribeToContact(contact);
         }
     }
 
     private int getPositionInTrackingList(String contact) {
         int position = 0;
         boolean found = false;
-        for (Pair<String, Boolean> numberWithStatusPair : trackingContactsList) {
-            if (contact.equals(numberWithStatusPair.first)) {
+        for (String number : trackingContactsList) {
+            if (contact.equals(number)) {
                 found = true;
                 break;
             } else {
@@ -667,7 +734,7 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
                     int position = getPositionInTrackingList(contact);
                     trackingContactsList.remove(position);
                     if ("connected".equals(data.getString("status"))) {
-                        trackingContactsList.add(new Pair<>(contact, true));
+                        trackingContactsList.add(contact);
                         showLastLocation(data, contact);
                         socketManager.onEvent(contact, new IEventListener() {
                             @Override
@@ -691,7 +758,7 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
                             }
                         });
                     } else {
-                        trackingContactsList.add(new Pair<>(contact, false));
+                        trackingContactsList.add(contact);
                         showLastLocation(data, contact);
                     }
                     unsubscribedContacts.remove(contact);
@@ -709,12 +776,9 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
                 final JSONObject data = (JSONObject) args[0];
                 try {
                     if ("success".equals(data.getString("status"))) {
-                        int position = getPositionInTrackingList(contact);
-                        trackingContactsList.remove(position);
-                        trackingContactsList.add(new Pair<>(contact, false));
+                        trackingContactsList.remove(contact);
                         HomeActivity.this.runOnUiThread(() -> {
                                     Toast.makeText(HomeActivity.this, "Stopped tracking " + contact, Toast.LENGTH_SHORT).show();
-//                                    trackingListViewAdapter.notifyDataSetChanged();
                                     trackingExpandableListViewAdapter.notifyDataSetChanged();
                                     Marker marker = currLocationMarkerMap.get(contact);
                                     if (marker != null) {
@@ -971,11 +1035,11 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
     public void onResume() {
         super.onResume();
         isActivityRunning = true;
-        if(!ConnectionUtils.isConnectedToInternet(this) || !ConnectionUtils.isLocationServiceOn(this)) {
-//            changeSwichStatusWithoutListener(false);
-            connectionAlertTextView.setText("Turn on location and connect to internet !!");
-            connectionAlertTextView.setVisibility(View.VISIBLE);
-        }
+//        if(!ConnectionUtils.isConnectedToInternet(this) || !ConnectionUtils.isLocationServiceOn(this)) {
+////            changeSwichStatusWithoutListener(false);
+//            connectionAlertTextView.setText("Turn on location and connect to internet !!");
+//            connectionAlertTextView.setVisibility(View.VISIBLE);
+//        }
         IntentFilter filter = new IntentFilter();
         filter.addAction("android.net.conn.CONNECTIVITY_CHANGE");
 //        filter.addAction(getPackageName() + "android.net.wifi.WIFI_STATE_CHANGED");  ///TODO check if this intent filter is needed ?
@@ -1106,52 +1170,71 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
 
     @Override
     public void onActivityResult(int requestCode, int resultCode, Intent data) {
-        switch(requestCode)
-        {
-            case (REQUEST_CODE_PICK_CONTACT):
-                if (resultCode == Activity.RESULT_OK)
-                {
-                    Uri contactUri = data.getData();
-                    // We only need the NUMBER column, because there will be only one row in the result
-                    String[] projection = {ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME,
-                            ContactsContract.CommonDataKinds.Phone.NUMBER};
-
-                    // Perform the query on the contact to get the NUMBER column
-                    // We don't need a selection or sort order (there's only one result for the given URI)
-                    // CAUTION: The query() method should be called from a separate thread to avoid blocking
-                    // your app's UI thread. (For simplicity of the sample, this code doesn't do that.)
-                    // Consider using CursorLoader to perform the query.
-                    Cursor cursor = getContentResolver()
-                            .query(contactUri, projection, null, null, null);
-                    cursor.moveToFirst();
-
-                    // Retrieve the phone number from the NUMBER column
-                    int columnName = cursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME);
-                    int columnNumber = cursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER);
-                    String name = cursor.getString(columnName);
-                    String number = cursor.getString(columnNumber);
-                    number = number.replace("-","");
-                    number = number.replace(" ","");
-                    if(number.length() > 10) {
-                        number = number.substring(number.length() - 10);
-                    }
-                    if(isConnectedToInternet()) {
-                        if(sharingContactsList.contains(number)) {
-                            Toast.makeText(HomeActivity.this, "Already added in contact list", Toast.LENGTH_SHORT).show();
+        if (resultCode == Activity.RESULT_OK) {
+            if(requestCode == REQUEST_CODE_PICK_SHARE_CONTACT ||
+                    requestCode == REQUEST_CODE_PICK_TRACK_CONTACT) {
+                ContactInfo contactInfo = new ContactInfo(data).invoke();
+                String name = contactInfo.getName();
+                String number = contactInfo.getNumber();
+                if(requestCode == REQUEST_CODE_PICK_SHARE_CONTACT) {
+                    if (isConnectedToInternet()) {
+                        if (sharingContactsList.contains(number)) {
+                            Toast.makeText(HomeActivity.this, "Already added in your sharing list", Toast.LENGTH_SHORT).show();
                         } else {
-                            addContactIfRegistered(number, name);
+                            addSharingContactIfRegistered(number, name);
+                        }
+                    } else {
+                        Toast.makeText(HomeActivity.this, "You are not online !!", Toast.LENGTH_SHORT).show();
+                    }
+                } else {
+                    if (isConnectedToInternet()) {
+                        if (trackingContactsList.contains(number)) {
+                            Toast.makeText(HomeActivity.this, "Already added in your tracking list", Toast.LENGTH_SHORT).show();
+                        } else {
+                            addTrackingContactIfRegistered(number, name);
                         }
                     } else {
                         Toast.makeText(HomeActivity.this, "You are not online !!", Toast.LENGTH_SHORT).show();
                     }
                 }
+            }
         }
         super.onActivityResult(requestCode, resultCode, data);
     }
 
-    private void addContactIfRegistered(String number, String name) {
+    private void addTrackingContactIfRegistered(String number, String name) {
         TrackingServiceClient client = RestClient.getTrackingServiceClient();
-        Call<ServiceResponse> call = client.addContactForSharingLocation(new ShareLocationRequest(loggedInMobile, number, name));
+        Call<ServiceResponse> call = client.addTrackingContact(new AddRemoveContactRequest(loggedInMobile, number, name));
+        call.enqueue(new Callback<ServiceResponse>() {
+            @Override
+            public void onResponse(Call<ServiceResponse> call, Response<ServiceResponse> response) {
+                if(response.isSuccessful()) {
+                    progressBar.setVisibility(View.GONE);
+                    ServiceResponse serviceResponse = response.body();
+                    if(serviceResponse.isSuccess()) {
+                        subscribeToContact(number);
+                        trackingContactsList.add(number);
+                        trackingExpandableListViewAdapter.notifyDataSetChanged();
+                        TrackDetailsDB.db().addContactToTrackLocation(number);
+                        Toast.makeText(HomeActivity.this, "Contact added to the list !!", Toast.LENGTH_SHORT).show();
+                    } else {
+                        Toast.makeText(HomeActivity.this, serviceResponse.getMessage(), Toast.LENGTH_SHORT).show();
+                    }
+                } else {
+                    Toast.makeText(HomeActivity.this, "Internal error, " + response.message(), Toast.LENGTH_SHORT).show();
+                }
+            }
+
+            @Override
+            public void onFailure(Call<ServiceResponse> call, Throwable t) {
+                progressBar.setVisibility(View.GONE);
+            }
+        });
+    }
+
+    private void addSharingContactIfRegistered(String number, String name) {
+        TrackingServiceClient client = RestClient.getTrackingServiceClient();
+        Call<ServiceResponse> call = client.addContactForSharingLocation(new AddRemoveContactRequest(loggedInMobile, number, name));
         call.enqueue(new Callback<ServiceResponse>() {
             @Override
             public void onResponse(Call<ServiceResponse> call, Response<ServiceResponse> response) {
@@ -1189,8 +1272,13 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
     }
 
     @Override
-    public void onRemoveContactButtonClick(int position) {
-        showDialogToRemoveContact(position);
+    public void onRemoveSharingContactButtonClick(int position) {
+        showDialogToRemoveSharingContact(position);
+    }
+
+    @Override
+    public void onRemoveTrackingContactButtonClick(int position) {
+        showDialogToRemoveTrackingContact(position);
     }
 
     private void getTrackingDetailsFromServerAndInitiliazeSocket() {
@@ -1234,6 +1322,64 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
                 swipeRefreshLayout.setRefreshing(false);
             }
         });
+    }
+
+    @Override
+    public void onTrackingContactFocus(int childPosition) {
+        mDrawerLayout.closeDrawer(Gravity.START, true);
+        String contact = trackingContactsList.get(childPosition);
+        currentFocussedContactOnMap = contact;
+        Marker marker = currLocationMarkerMap.get(contact);
+        if (marker != null) {
+            googleMap.animateCamera(CameraUpdateFactory.newLatLngZoom(marker.getPosition(), 16));
+            marker.showInfoWindow();
+        }
+    }
+
+    private class ContactInfo {
+        private Intent data;
+        private String name;
+        private String number;
+
+        public ContactInfo(Intent data) {
+            this.data = data;
+        }
+
+        public String getName() {
+            return name;
+        }
+
+        public String getNumber() {
+            return number;
+        }
+
+        public ContactInfo invoke() {
+            Uri contactUri = data.getData();
+            // We only need the NUMBER column, because there will be only one row in the result
+            String[] projection = {ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME,
+                    ContactsContract.CommonDataKinds.Phone.NUMBER};
+
+            // Perform the query on the contact to get the NUMBER column
+            // We don't need a selection or sort order (there's only one result for the given URI)
+            // CAUTION: The query() method should be called from a separate thread to avoid blocking
+            // your app's UI thread. (For simplicity of the sample, this code doesn't do that.)
+            // Consider using CursorLoader to perform the query.
+            Cursor cursor = getContentResolver()
+                    .query(contactUri, projection, null, null, null);
+            cursor.moveToFirst();
+
+            // Retrieve the phone number from the NUMBER column
+            int columnName = cursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME);
+            int columnNumber = cursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER);
+            name = cursor.getString(columnName);
+            number = cursor.getString(columnNumber);
+            number = number.replace("-","");
+            number = number.replace(" ","");
+            if(number.length() > 10) {
+                number = number.substring(number.length() - 10);
+            }
+            return this;
+        }
     }
 }
 

@@ -11,9 +11,15 @@ public interface TrackingServiceClient {
     Call<TrackingDetailsResponse> getTrackingDetails(@Body MobileRequest mobile);
 
     @POST("user/location/share/addcontact")
-    Call<ServiceResponse> addContactForSharingLocation(@Body ShareLocationRequest shareLocationRequest);
+    Call<ServiceResponse> addContactForSharingLocation(@Body AddRemoveContactRequest addRemoveContactRequest);
 
     @POST("user/location/share/deletecontact")
-    Call<ServiceResponse> deleteContactFromSharingLocationList(@Body ShareLocationRequest shareLocationRequest);
+    Call<ServiceResponse> deleteContactFromSharingLocationList(@Body AddRemoveContactRequest addRemoveContactRequest);
+
+    @POST("user/location/track/addcontact")
+    Call<ServiceResponse> addTrackingContact(@Body AddRemoveContactRequest addRemoveContactRequest);
+
+    @POST("user/location/track/deletecontact")
+    Call<ServiceResponse> deleteTrackingContact(@Body AddRemoveContactRequest addRemoveContactRequest);
 
 }
