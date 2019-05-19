@@ -22,7 +22,7 @@ public class SharingContactListViewAdapter extends ArrayAdapter<String> {
 
     public SharingContactListViewAdapter(Context context, List<String> values,
                                          IRemoveContactButtonClickListener removeContactButtonClickListener) {
-        super(context, R.layout.drawer_list_item, values);
+        super(context, R.layout.drawer_list_item_tracking, values);
         this.context = context;
         this.values = values;
         this.removeContactButtonClickListener = removeContactButtonClickListener;
@@ -32,7 +32,7 @@ public class SharingContactListViewAdapter extends ArrayAdapter<String> {
     public View getView(int position, View convertView, ViewGroup parent) {
         LayoutInflater inflater = (LayoutInflater) context
                 .getSystemService(Context.LAYOUT_INFLATER_SERVICE);
-        View rowView = inflater.inflate(R.layout.drawer_list_item, parent, false);
+        View rowView = inflater.inflate(R.layout.drawer_list_item_tracking, parent, false);
         if(position % 2 == 0) {
             rowView.setBackgroundColor(Color.LTGRAY);
         }

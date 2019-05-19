@@ -6,6 +6,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.BaseExpandableListAdapter;
+import android.widget.CheckBox;
 import android.widget.CompoundButton;
 import android.widget.ImageView;
 import android.widget.Switch;
@@ -14,6 +15,7 @@ import android.widget.TextView;
 import com.pyb.trackme.R;
 import com.pyb.trackme.activities.IPerContactSwitchListener;
 import com.pyb.trackme.activities.IRemoveContactButtonClickListener;
+import com.pyb.trackme.cache.TrackDetailsDB;
 
 import java.util.List;
 
@@ -24,6 +26,7 @@ public class SharingExpandableListViewAdapter extends BaseExpandableListAdapter 
     private final List<String> values;
     private final String GROUP_HEADER = "Contacts";
     private final IPerContactSwitchListener perContactSwitchListener;
+    private final TrackDetailsDB db;
 
     public SharingExpandableListViewAdapter(Context context, List<String> values,
                                             IRemoveContactButtonClickListener removeContactButtonClickListener,
@@ -32,6 +35,7 @@ public class SharingExpandableListViewAdapter extends BaseExpandableListAdapter 
         this.values = values;
         this.removeContactButtonClickListener = removeContactButtonClickListener;
         this.perContactSwitchListener = perContactSwitchListener;
+        db = TrackDetailsDB.db();
     }
 
     @Override
@@ -89,23 +93,27 @@ public class SharingExpandableListViewAdapter extends BaseExpandableListAdapter 
     public View getChildView(int groupPosition, int childPosition, boolean isLastChild, View convertView, ViewGroup parent) {
         LayoutInflater inflater = (LayoutInflater) context
                 .getSystemService(Context.LAYOUT_INFLATER_SERVICE);
-        View rowView = inflater.inflate(R.layout.drawer_list_item, parent, false);
+        View rowView = inflater.inflate(R.layout.drawer_list_item_sharing, parent, false);
         if(childPosition % 2 == 0) {
             rowView.setBackgroundColor(Color.LTGRAY);
         }
-        rowView.findViewById(R.id.focus).setVisibility(View.GONE);
-        ImageView removeContactBtn = rowView.findViewById(R.id.delete_contact_image);
-        removeContactBtn.setVisibility(View.VISIBLE);
+        ImageView removeContactBtn = rowView.findViewById(R.id.delete_sharing_contact_image);
         removeContactBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 removeContactButtonClickListener.onRemoveSharingContactButtonClick(childPosition);
             }
         });
-        TextView number = rowView.findViewById(R.id.tracked_number);
-        number.setText(values.get(childPosition));
-        Switch startStopTrackingSwitch = rowView.findViewById(R.id.per_contact_switch);
-        startStopTrackingSwitch.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+        String contact = values.get(childPosition);
+        TextView numberView = rowView.findViewById(R.id.sharing_number);
+        numberView.setText(contact);
+        CheckBox sharingStatusCheckbox = rowView.findViewById(R.id.sharing_checkbox);
+        if(db.getSharingStatus(contact)) {
+            sharingStatusCheckbox.setChecked(true);
+        } else {
+            sharingStatusCheckbox.setChecked(false);
+        }
+        sharingStatusCheckbox.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             @Override
             public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
                 perContactSwitchListener.onSharingContactSwitchClick(childPosition, isChecked);

@@ -1,9 +1,22 @@
 package com.pyb.trackme.cache;
 
+import android.content.Context;
+import android.content.SharedPreferences;
+
+import com.google.gson.JsonObject;
+
+import org.json.JSONException;
+import org.json.JSONObject;
+
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.Iterator;
 import java.util.LinkedHashSet;
+import java.util.Map;
 import java.util.Set;
+
+import static android.content.Context.MODE_PRIVATE;
 
 public class TrackDetailsDB {
 
@@ -11,13 +24,18 @@ public class TrackDetailsDB {
 
     private Set<String> sharingContactsList;
     private Set<String> trackingContactsList;
+    private Map<String, Boolean> trackingContactStatus;
+    private Map<String, Boolean> sharingContactStatus;
 
     private TrackDetailsDB() {
         sharingContactsList = new LinkedHashSet<>();
         trackingContactsList = new LinkedHashSet<>();
+        trackingContactStatus = new HashMap<>();
+        sharingContactStatus = new HashMap<>();
     }
 
     public void addContactsToShareLocation(Collection<String> contacts) {
+        sharingContactsList.clear();
         sharingContactsList.addAll(contacts);
     }
 
@@ -26,6 +44,7 @@ public class TrackDetailsDB {
     }
 
     public void addContactsToTrackLocation(Collection<String> contacts) {
+        trackingContactsList.clear();
         trackingContactsList.addAll(contacts);
     }
 
@@ -51,13 +70,89 @@ public class TrackDetailsDB {
 
     public void deleteContactFromSharingList(String contact) {
         sharingContactsList.remove(contact);
+        sharingContactStatus.remove(contact);
     }
 
     public void deleteContactFromTrackingList(String contact) {
         trackingContactsList.remove(contact);
+        trackingContactStatus.remove(contact);
     }
 
     public void addContactToTrackLocation(String contact) {
         trackingContactsList.add(contact);
+    }
+
+    public void updateTrackingStatus(String contact, boolean trackingStatus) {
+        trackingContactStatus.put(contact, trackingStatus);
+    }
+
+    public void updateSharingStatus(String contact, boolean sharingStatus) {
+        sharingContactStatus.put(contact, sharingStatus);
+    }
+
+    public void saveDataInPref(Context context) {
+        SharedPreferences preferences = context.getSharedPreferences(context.getApplicationInfo().packageName + "_Login", MODE_PRIVATE);
+        SharedPreferences.Editor editor = preferences.edit();
+        JSONObject jsonObject = new JSONObject(trackingContactStatus);
+        String trackingStatusStr = jsonObject.toString();
+        editor.putString("trackingContactStatus", trackingStatusStr);
+        editor.putString("sharingContactStatus", new JSONObject(sharingContactStatus).toString());
+        editor.putStringSet("trackingContacts", trackingContactsList);
+        editor.putStringSet("sharingContacts", sharingContactsList);
+        editor.commit();
+    }
+
+    public boolean readDataFromPref(Context context) {
+        SharedPreferences preferences = context.getSharedPreferences(context.getApplicationInfo().packageName + "_Login", MODE_PRIVATE);
+        if(preferences.contains("sharingContacts") && preferences.contains("trackingContacts")) {
+            sharingContactsList = preferences.getStringSet("sharingContacts", Collections.EMPTY_SET);
+            trackingContactsList = preferences.getStringSet("trackingContacts", Collections.EMPTY_SET);
+            String trackingStatusStr = preferences.getString("trackingContactStatus", new JSONObject().toString());
+            trackingContactStatus = loadMap(trackingStatusStr);
+            String sharingStatusStr = preferences.getString("sharingContactStatus", new JSONObject().toString());
+            sharingContactStatus = loadMap(sharingStatusStr);
+            return true;
+        }
+        return false;
+    }
+
+    private Map<String, Boolean> loadMap(String jsonStr) {
+        Map<String, Boolean> outputMap = new HashMap<>();
+        JSONObject jsonObject;
+        try {
+            jsonObject = new JSONObject(jsonStr);
+            Iterator<String> keysItr = jsonObject.keys();
+            while(keysItr.hasNext()) {
+                String key = keysItr.next();
+                Boolean value = (Boolean) jsonObject.get(key);
+                outputMap.put(key, value);
+            }
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+        return outputMap;
+    }
+
+    public boolean getTrackingStatus(String contact) {
+        if(trackingContactStatus.containsKey(contact)) {
+            return trackingContactStatus.get(contact);
+        }
+        return false;
+    }
+
+    public boolean getSharingStatus(String contact) {
+        if(sharingContactStatus.containsKey(contact)) {
+            return sharingContactStatus.get(contact);
+        }
+        return false;
+    }
+
+    public boolean isSharingOnForAtLeastOneContact() {
+        for(Boolean status : sharingContactStatus.values()) {
+            if(status) {
+                return true;
+            }
+        }
+        return false;
     }
 }

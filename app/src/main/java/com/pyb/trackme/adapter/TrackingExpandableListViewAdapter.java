@@ -14,6 +14,7 @@ import android.widget.TextView;
 import com.pyb.trackme.R;
 import com.pyb.trackme.activities.IPerContactSwitchListener;
 import com.pyb.trackme.activities.IRemoveContactButtonClickListener;
+import com.pyb.trackme.cache.TrackDetailsDB;
 
 import java.util.List;
 
@@ -25,6 +26,7 @@ public class TrackingExpandableListViewAdapter extends BaseExpandableListAdapter
     private final IRemoveContactButtonClickListener removeContactButtonClickListener;
     private final IOnTrackingContactFocusListener onFocusListener;
     private final IPerContactSwitchListener perContactSwitchListener;
+    private final TrackDetailsDB db;
 
     public TrackingExpandableListViewAdapter(Context context, List<String> valuesWithLiveStatus,
                                              IRemoveContactButtonClickListener removeContactButtonClickListener,
@@ -35,6 +37,7 @@ public class TrackingExpandableListViewAdapter extends BaseExpandableListAdapter
         this.removeContactButtonClickListener = removeContactButtonClickListener;
         this.onFocusListener = onFocusListener;
         this.perContactSwitchListener = perContactSwitchListener;
+        this.db = TrackDetailsDB.db();
     }
 
     @Override
@@ -91,12 +94,10 @@ public class TrackingExpandableListViewAdapter extends BaseExpandableListAdapter
 
     @Override
     public View getChildView(int groupPosition, int childPosition, boolean isLastChild, View convertView, ViewGroup parent) {
-        if(convertView == null) {
-            LayoutInflater inflater = (LayoutInflater) context
-                    .getSystemService(Context.LAYOUT_INFLATER_SERVICE);
+        LayoutInflater inflater = (LayoutInflater) context
+                .getSystemService(Context.LAYOUT_INFLATER_SERVICE);
 
-            convertView = inflater.inflate(R.layout.drawer_list_item, parent, false);
-        }
+        convertView = inflater.inflate(R.layout.drawer_list_item_tracking, parent, false);
         if(childPosition % 2 == 0) {
             convertView.setBackgroundColor(Color.LTGRAY);
         }
@@ -104,7 +105,6 @@ public class TrackingExpandableListViewAdapter extends BaseExpandableListAdapter
         TextView numberView = convertView.findViewById(R.id.tracked_number);
         numberView.setText(number);
         ImageView focusBtn = convertView.findViewById(R.id.focus);
-        focusBtn.setVisibility(View.VISIBLE);
         focusBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -112,7 +112,6 @@ public class TrackingExpandableListViewAdapter extends BaseExpandableListAdapter
             }
         });
         ImageView removeContactBtn = convertView.findViewById(R.id.delete_contact_image);
-        removeContactBtn.setVisibility(View.VISIBLE);
         removeContactBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -120,6 +119,11 @@ public class TrackingExpandableListViewAdapter extends BaseExpandableListAdapter
             }
         });
         Switch startStopTrackingSwitch = convertView.findViewById(R.id.per_contact_switch);
+        if(db.getTrackingStatus(number)) {
+            startStopTrackingSwitch.setChecked(true);
+        } else {
+            startStopTrackingSwitch.setChecked(false);
+        }
         startStopTrackingSwitch.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             @Override
             public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {

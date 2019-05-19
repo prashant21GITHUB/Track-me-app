@@ -7,14 +7,11 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
-import android.widget.ImageView;
 import android.widget.TextView;
 
 import com.pyb.trackme.R;
 
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 public class TrackingContactsListViewAdapter extends ArrayAdapter<Pair<String, Boolean>> {
 
@@ -22,7 +19,7 @@ public class TrackingContactsListViewAdapter extends ArrayAdapter<Pair<String, B
     private final List<Pair<String, Boolean>> valuesWithLiveStatus;
 
     public TrackingContactsListViewAdapter(Context context, List<Pair<String, Boolean>> valuesWithLiveStatus) {
-        super(context, R.layout.drawer_list_item, valuesWithLiveStatus);
+        super(context, R.layout.drawer_list_item_tracking, valuesWithLiveStatus);
         this.context = context;
         this.valuesWithLiveStatus = valuesWithLiveStatus;
     }
@@ -31,7 +28,7 @@ public class TrackingContactsListViewAdapter extends ArrayAdapter<Pair<String, B
     public View getView(int position, View convertView, ViewGroup parent) {
             LayoutInflater inflater = (LayoutInflater) context
                     .getSystemService(Context.LAYOUT_INFLATER_SERVICE);
-            convertView = inflater.inflate(R.layout.drawer_list_item, parent, false);
+            convertView = inflater.inflate(R.layout.drawer_list_item_tracking, parent, false);
         if(position % 2 == 0) {
             convertView.setBackgroundColor(Color.LTGRAY);
         }

@@ -80,17 +80,6 @@
             android:layout_below="@+id/divider3"
             tools:context="com.pyb.trackme.activities.HomeActivity" />
 
-        <ImageButton
-            android:id="@+id/add_contact_btn"
-            android:layout_width="30dp"
-            android:layout_height="30dp"
-            android:layout_toRightOf="@+id/sharing_switch"
-            android:layout_below="@+id/pullToRefresh"
-            android:background="@android:color/transparent"
-            android:scaleType="fitCenter"
-            android:layout_margin="10dp"
-            app:srcCompat="@drawable/add_icon_2" />
-
         <ProgressBar
             android:id="@+id/progressBarHomeActivity"
             android:layout_width="wrap_content"

@@ -61,6 +61,7 @@ public class LocationService extends Service {
     private NetworkChangeReceiver networkChangeReceiver;
     private LocationServiceChangeReceiver locationServiceChangeReceiver;
     private Handler handler;
+    private TrackDetailsDB db;
 
     @Override
     public IBinder onBind(Intent intent) {
@@ -73,6 +74,7 @@ public class LocationService extends Service {
         super.onCreate();
         LOGIN_PREF_NAME = getApplicationInfo().packageName +"_Login";
         socketManager = ((TrackMeApplication)getApplication()).getSocketManager();
+        db = TrackDetailsDB.db();
         showForegroundNotification();
 
 //        PowerManager pm = (PowerManager) getSystemService(this.POWER_SERVICE);
@@ -244,12 +246,14 @@ public class LocationService extends Service {
     }
 
     private void sendEventToPublishLocationData() {
-        Collection<String> sharingContactsList = TrackDetailsDB.db().getContactsToShareLocation();
+        Collection<String> sharingContactsList = db.getContactsToShareLocation();
         if(!sharingContactsList.isEmpty()) {
             JSONArray arr = new JSONArray();
             arr.put(loggedInMobile);
             for (String contact : sharingContactsList) {
-                arr.put(contact);
+                if(db.getSharingStatus(contact)) {
+                    arr.put(contact);
+                }
             }
             socketManager.sendEventMessage("startPublish", arr);
         }

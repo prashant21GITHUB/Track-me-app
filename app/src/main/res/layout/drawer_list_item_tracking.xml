@@ -16,6 +16,24 @@
         android:layout_centerVertical="true"
         android:layout_marginLeft="10dp" />
 
+    <ImageView
+        android:id="@+id/focus"
+        android:layout_width="20dp"
+        android:layout_height="25dp"
+        android:scaleType="centerInside"
+        android:layout_centerVertical="true"
+        android:layout_toLeftOf="@+id/per_contact_switch"
+        android:layout_marginRight="10dp"
+        android:src="@drawable/focus_2" />
+
+    <Switch
+        android:id="@+id/per_contact_switch"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_centerVertical="true"
+        android:layout_toLeftOf="@+id/delete_contact_image"
+        android:layout_marginRight="10dp"
+        />
 
     <ImageView
         android:id="@+id/delete_contact_image"
@@ -26,36 +44,5 @@
         android:layout_alignParentEnd="true"
         android:layout_marginRight="10dp"
         android:src="@drawable/delete_4" />
-
-    <Switch
-        android:id="@+id/per_contact_switch"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_centerVertical="true"
-        android:layout_toLeftOf="@+id/focus"
-        android:layout_marginRight="10dp"
-    />
-
-    <ImageView
-        android:id="@+id/focus"
-        android:layout_width="20dp"
-        android:layout_height="25dp"
-        android:scaleType="centerInside"
-        android:layout_centerVertical="true"
-        android:layout_toLeftOf="@+id/delete_contact_image"
-        android:layout_marginRight="10dp"
-        android:visibility="gone"
-        android:src="@drawable/focus_2" />
-
-    <!--<Switch-->
-        <!--android:id="@+id/switch1"-->
-        <!--android:layout_width="wrap_content"-->
-        <!--android:layout_height="wrap_content"-->
-        <!--android:layout_gravity="center"-->
-        <!--android:layout_marginRight="20dp"-->
-        <!--android:shadowColor="@color/colorPrimary"-->
-        <!--android:theme="@style/SwitchTheme"-->
-     <!--/>-->
-
 
 </RelativeLayout>

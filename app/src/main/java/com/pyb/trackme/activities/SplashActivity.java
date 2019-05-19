@@ -41,9 +41,6 @@ public class SplashActivity extends AppCompatActivity {
             @Override
             public void run() {
                 // This method will be executed once the timer is over
-                if(sharingContactsList == null && trackingContactsList == null) {
-                    Toast.makeText(SplashActivity.this, "Check your internet connection !!", Toast.LENGTH_SHORT).show();
-                }
                 Intent i = new Intent(SplashActivity.this, HomeActivity.class);
                 i.putExtra("name", loggedInName);
                 i.putExtra("mobile", loggedInMobile);
@@ -54,7 +51,10 @@ public class SplashActivity extends AppCompatActivity {
     }
 
     private void getTrackingDetails() {
-        TrackDetailsDB.db().clear();
+        boolean isDataPresentInPref = TrackDetailsDB.db().readDataFromPref(getApplicationContext());
+        if(isDataPresentInPref) {
+            return;
+        }
         if(ConnectionUtils.isConnectedToInternet(SplashActivity.this)) {
             syncTrackingDetailsFromServer();
         } else {
