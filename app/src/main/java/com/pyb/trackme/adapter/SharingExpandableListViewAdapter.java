@@ -6,10 +6,13 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.BaseExpandableListAdapter;
+import android.widget.CompoundButton;
 import android.widget.ImageView;
+import android.widget.Switch;
 import android.widget.TextView;
 
 import com.pyb.trackme.R;
+import com.pyb.trackme.activities.IPerContactSwitchListener;
 import com.pyb.trackme.activities.IRemoveContactButtonClickListener;
 
 import java.util.List;
@@ -20,12 +23,15 @@ public class SharingExpandableListViewAdapter extends BaseExpandableListAdapter 
     private final IRemoveContactButtonClickListener removeContactButtonClickListener;
     private final List<String> values;
     private final String GROUP_HEADER = "Contacts";
+    private final IPerContactSwitchListener perContactSwitchListener;
 
     public SharingExpandableListViewAdapter(Context context, List<String> values,
-                                            IRemoveContactButtonClickListener removeContactButtonClickListener) {
+                                            IRemoveContactButtonClickListener removeContactButtonClickListener,
+                                            IPerContactSwitchListener perContactSwitchListener) {
         this.context = context;
         this.values = values;
         this.removeContactButtonClickListener = removeContactButtonClickListener;
+        this.perContactSwitchListener = perContactSwitchListener;
     }
 
     @Override
@@ -98,6 +104,13 @@ public class SharingExpandableListViewAdapter extends BaseExpandableListAdapter 
         });
         TextView number = rowView.findViewById(R.id.tracked_number);
         number.setText(values.get(childPosition));
+        Switch startStopTrackingSwitch = rowView.findViewById(R.id.per_contact_switch);
+        startStopTrackingSwitch.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                perContactSwitchListener.onSharingContactSwitchClick(childPosition, isChecked);
+            }
+        });
         return rowView;
     }
 

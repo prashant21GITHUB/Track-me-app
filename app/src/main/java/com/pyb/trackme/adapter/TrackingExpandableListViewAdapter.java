@@ -6,10 +6,13 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.BaseExpandableListAdapter;
+import android.widget.CompoundButton;
 import android.widget.ImageView;
+import android.widget.Switch;
 import android.widget.TextView;
 
 import com.pyb.trackme.R;
+import com.pyb.trackme.activities.IPerContactSwitchListener;
 import com.pyb.trackme.activities.IRemoveContactButtonClickListener;
 
 import java.util.List;
@@ -21,14 +24,17 @@ public class TrackingExpandableListViewAdapter extends BaseExpandableListAdapter
     private final String GROUP_HEADER = "Contacts";
     private final IRemoveContactButtonClickListener removeContactButtonClickListener;
     private final IOnTrackingContactFocusListener onFocusListener;
+    private final IPerContactSwitchListener perContactSwitchListener;
 
     public TrackingExpandableListViewAdapter(Context context, List<String> valuesWithLiveStatus,
                                              IRemoveContactButtonClickListener removeContactButtonClickListener,
-                                             IOnTrackingContactFocusListener onFocusListener) {
+                                             IOnTrackingContactFocusListener onFocusListener,
+                                             IPerContactSwitchListener perContactSwitchListener) {
         this.context = context;
         this.valuesWithLiveStatus = valuesWithLiveStatus;
         this.removeContactButtonClickListener = removeContactButtonClickListener;
         this.onFocusListener = onFocusListener;
+        this.perContactSwitchListener = perContactSwitchListener;
     }
 
     @Override
@@ -111,6 +117,13 @@ public class TrackingExpandableListViewAdapter extends BaseExpandableListAdapter
             @Override
             public void onClick(View v) {
                 removeContactButtonClickListener.onRemoveTrackingContactButtonClick(childPosition);
+            }
+        });
+        Switch startStopTrackingSwitch = convertView.findViewById(R.id.per_contact_switch);
+        startStopTrackingSwitch.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                perContactSwitchListener.onTrackingContactSwitchClick(childPosition, isChecked);
             }
         });
         return convertView;

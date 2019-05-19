@@ -88,7 +88,8 @@ import retrofit2.Callback;
 import retrofit2.Response;
 
 
-public class HomeActivity extends AppCompatActivity implements OnMapReadyCallback, IRemoveContactButtonClickListener, IOnTrackingContactFocusListener {
+public class HomeActivity extends AppCompatActivity implements OnMapReadyCallback,
+        IRemoveContactButtonClickListener, IOnTrackingContactFocusListener, IPerContactSwitchListener {
 
     private static final int REQUEST_CODE_PICK_SHARE_CONTACT = 131;
     private static final int REQUEST_CODE_PICK_TRACK_CONTACT = 133;
@@ -401,9 +402,9 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
         }
         sharingContactsList.addAll(TrackDetailsDB.db().getContactsToShareLocation());
 //        sharingListViewAdapter = new SharingContactListViewAdapter(this, sharingContactsList, this);
-        sharingExpandableListViewAdapter = new SharingExpandableListViewAdapter(this, sharingContactsList, this);
+        sharingExpandableListViewAdapter = new SharingExpandableListViewAdapter(this, sharingContactsList, this, this);
 //        trackingListViewAdapter = new TrackingContactsListViewAdapter(this, trackingContactsList);
-        trackingExpandableListViewAdapter = new TrackingExpandableListViewAdapter(this, trackingContactsList, this, this);
+        trackingExpandableListViewAdapter = new TrackingExpandableListViewAdapter(this, trackingContactsList, this, this, this);
 //        sharingListView.setAdapter(sharingListViewAdapter);
 //        trackingListView.setAdapter(trackingListViewAdapter);
         sharingContactsExpandableListView.setAdapter(sharingExpandableListViewAdapter);
@@ -776,10 +777,8 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
                 final JSONObject data = (JSONObject) args[0];
                 try {
                     if ("success".equals(data.getString("status"))) {
-                        trackingContactsList.remove(contact);
                         HomeActivity.this.runOnUiThread(() -> {
                                     Toast.makeText(HomeActivity.this, "Stopped tracking " + contact, Toast.LENGTH_SHORT).show();
-                                    trackingExpandableListViewAdapter.notifyDataSetChanged();
                                     Marker marker = currLocationMarkerMap.get(contact);
                                     if (marker != null) {
                                         marker.hideInfoWindow();
@@ -1333,6 +1332,34 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
         if (marker != null) {
             googleMap.animateCamera(CameraUpdateFactory.newLatLngZoom(marker.getPosition(), 16));
             marker.showInfoWindow();
+        }
+    }
+
+    @Override
+    public void onSharingContactSwitchClick(int position, boolean isChecked) {
+        String contact_ = sharingContactsList.get(position);
+        JSONObject jsonObject = new JSONObject();
+        try {
+            jsonObject.put("publisher", loggedInMobile);
+            if(isChecked) {
+                jsonObject.put("contactToAdd", contact_);
+                socketManager.sendEventMessage("addContact", jsonObject);
+            } else {
+                jsonObject.put("contactToRemove", contact_);
+                socketManager.sendEventMessage("removeContact", jsonObject);
+            }
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+    }
+
+    @Override
+    public void onTrackingContactSwitchClick(int position, boolean isChecked) {
+        String contact_ = trackingContactsList.get(position);
+        if(isChecked) {
+            subscribeToContact(contact_);
+        } else {
+            unsubscribeToContact(contact_);
         }
     }
 
