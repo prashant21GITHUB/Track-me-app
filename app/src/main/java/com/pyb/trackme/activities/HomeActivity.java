@@ -20,6 +20,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.provider.ContactsContract;
+import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v4.widget.DrawerLayout;
@@ -30,6 +31,7 @@ import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
 import android.util.Pair;
+import android.view.DragEvent;
 import android.view.Gravity;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -153,7 +155,7 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
 
         socketManager = ((TrackMeApplication) getApplication()).getSocketManager();
         if (getIntent() != null && NOTIFICATION_CHANNEL_ID.equals(getIntent().getAction())) {
-            boolean isDataPresentInPref = TrackDetailsDB.db().readDataFromPref(getApplicationContext());
+            boolean isDataPresentInPref = db.readDataFromPref(getApplicationContext());
             if(!isDataPresentInPref) {
                 getTrackingDetailsFromServerAndInitiliazeSocket();
             } else {
@@ -336,6 +338,7 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
         });
         ActionBarDrawerToggle toggle = new ActionBarDrawerToggle(this, mDrawerLayout, toolbar, R.string.navigation_drawer_open, R.string.navigation_drawer_close);
         mDrawerLayout.addDrawerListener(toggle);
+        toggle.setDrawerSlideAnimationEnabled(true);
         toggle.setDrawerIndicatorEnabled(true);
         toggle.syncState();
     }
@@ -347,12 +350,13 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
     }
 
     private void initializeSharingAndTrackingContactsList() {
-        sharingContactsList = new ArrayList<>(TrackDetailsDB.db().getContactsToShareLocation());
-        trackingContactsList = new ArrayList<>(TrackDetailsDB.db().getContactsToTrackLocation());
+        sharingContactsList = new ArrayList<>(db.getContactsToShareLocation());
+        trackingContactsList = new ArrayList<>(db.getContactsToTrackLocation());
         sharingExpandableListViewAdapter = new SharingExpandableListViewAdapter(this, sharingContactsList, this, this);
         trackingExpandableListViewAdapter = new TrackingExpandableListViewAdapter(this, trackingContactsList, this, this, this);
         sharingContactsExpandableListView.setAdapter(sharingExpandableListViewAdapter);
         trackingContactsExpandableListView.setAdapter(trackingExpandableListViewAdapter);
+        sharingContactsExpandableListView.expandGroup(0);
     }
 
     private void showDialogToRemoveSharingContact(int position) {
@@ -414,7 +418,7 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
                                 } catch (JSONException e) {
                                     e.printStackTrace();
                                 }
-                                TrackDetailsDB.db().deleteContactFromSharingList(sharingContactsList.get(position));
+                                db.deleteContactFromSharingList(sharingContactsList.get(position));
                                 sharingContactsList.remove(position);
 //                                sharingListViewAdapter.notifyDataSetChanged();
                                 sharingExpandableListViewAdapter.notifyDataSetChanged();
@@ -449,7 +453,7 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
                             ServiceResponse serviceResponse = response.body();
                             if (serviceResponse.isSuccess()) {
                                 unsubscribeToContact(trackingContactsList.get(position));
-                                TrackDetailsDB.db().deleteContactFromTrackingList(trackingContactsList.get(position));
+                                db.deleteContactFromTrackingList(trackingContactsList.get(position));
                                 trackingContactsList.remove(position);
                                 trackingExpandableListViewAdapter.notifyDataSetChanged();
                                 Toast.makeText(HomeActivity.this, "Contact removed from tracking list", Toast.LENGTH_SHORT).show();
@@ -495,7 +499,7 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
                         sharingSwitch.setChecked(false);
                         return;
                     }
-                    if (sharingContactsList.isEmpty()) {
+                    if (sharingContactsList.isEmpty() || !db.isSharingOnForAtLeastOneContact()) {
                         sharingSwitch.setChecked(false);
                         Toast.makeText(HomeActivity.this, "Select contacts with whom you want to share your location !!", Toast.LENGTH_LONG).show();
                         return;
@@ -651,7 +655,6 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
 
     private void subscribeToTrackContacts() {
         for (String contact : trackingContactsList) {
-            TrackDetailsDB db = TrackDetailsDB.db();
             if(db.getTrackingStatus(contact)) {
                 subscribeToContact(contact);
             }
@@ -783,22 +786,18 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
             return;
         }
         googleMap.setMyLocationEnabled(true);
-
 //         Enable / Disable zooming controls
         googleMap.getUiSettings().setZoomControlsEnabled(true);
 
 //         Enable / Disable my location button
         googleMap.getUiSettings().setMyLocationButtonEnabled(true);
-
-        // Enable / Disable Compass icon
-        googleMap.getUiSettings().setCompassEnabled(true);
 //        googleMap.getUiSettings().setAllGesturesEnabled(true);
-
         // Enable / Disable Rotate gesture
         googleMap.getUiSettings().setRotateGesturesEnabled(true);
-
 //         Enable / Disable zooming functionality
         googleMap.getUiSettings().setZoomGesturesEnabled(true);
+        // Enable / Disable Compass icon
+        googleMap.getUiSettings().setCompassEnabled(true);
     }
 
     private void readLoggedInUserDetailsAndLocationSharingStatus() {
@@ -816,6 +815,10 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
         editor.putString("Name", "");
         editor.putString("Mobile", "");
         editor.putBoolean("locationSharingStatus", false);
+        editor.remove("trackingContactStatus");
+        editor.remove("sharingContactStatus");
+        editor.remove("trackingContacts");
+        editor.remove("sharingContacts");
         editor.commit();
         this.loggedInName = "";
         this.loggedInMobile = "";
@@ -1073,7 +1076,7 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
         Log.d("TrackMe_HomeActivity", "onStop");
         unregisterReceiver(networkChangeReceiver);
         unregisterReceiver(locationServiceChangeReceiver);
-        TrackDetailsDB.db().saveDataInPref(getApplicationContext());
+        db.saveDataInPref(getApplicationContext());
     }
 
     @Override
@@ -1153,8 +1156,8 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
                     if(serviceResponse.isSuccess()) {
                         trackingContactsList.add(number);
                         trackingExpandableListViewAdapter.notifyDataSetChanged();
-                        TrackDetailsDB.db().addContactToTrackLocation(number);
-                        TrackDetailsDB.db().updateTrackingStatus(number, false);
+                        db.addContactToTrackLocation(number);
+                        db.updateTrackingStatus(number, false);
                         Toast.makeText(HomeActivity.this, "Contact added to the list !!", Toast.LENGTH_SHORT).show();
                     } else {
                         Toast.makeText(HomeActivity.this, serviceResponse.getMessage(), Toast.LENGTH_SHORT).show();
@@ -1183,8 +1186,8 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
                     if(serviceResponse.isSuccess()) {
                         sharingContactsList.add(number);
                         sharingExpandableListViewAdapter.notifyDataSetChanged();
-                        TrackDetailsDB.db().addContactToShareLocation(number);
-                        TrackDetailsDB.db().updateSharingStatus(number, false);
+                        db.addContactToShareLocation(number);
+                        db.updateSharingStatus(number, false);
                         Toast.makeText(HomeActivity.this, "Contact added to the list !!", Toast.LENGTH_SHORT).show();
                     } else {
                         Toast.makeText(HomeActivity.this, serviceResponse.getMessage(), Toast.LENGTH_SHORT).show();
@@ -1233,9 +1236,9 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
                     if(trackingDetailsResponse.isSuccess()) {
                         sharingContacts = trackingDetailsResponse.getSharingWith();
                         trackingContacts  = trackingDetailsResponse.getTracking();
-//                        TrackDetailsDB.db().clear();
-                        TrackDetailsDB.db().addContactsToShareLocation(sharingContacts);
-                        TrackDetailsDB.db().addContactsToTrackLocation(trackingContacts);
+//                        db.clear();
+                        db.addContactsToShareLocation(sharingContacts);
+                        db.addContactsToTrackLocation(trackingContacts);
                         initializeSharingAndTrackingContactsList();
                         connectToServer();
                         subscribeToTrackContacts();
@@ -1269,7 +1272,6 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
     @Override
     public void onSharingContactSwitchClick(int position, boolean isChecked) {
         String contact_ = sharingContactsList.get(position);
-        TrackDetailsDB db = TrackDetailsDB.db();
         JSONObject jsonObject = new JSONObject();
         try {
             jsonObject.put("publisher", loggedInMobile);
@@ -1296,7 +1298,6 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
     @Override
     public void onTrackingContactSwitchClick(int position, boolean isChecked) {
         String contact_ = trackingContactsList.get(position);
-        TrackDetailsDB db = TrackDetailsDB.db();
         if(isChecked) {
             db.updateTrackingStatus(contact_, true);
             subscribeToContact(contact_);

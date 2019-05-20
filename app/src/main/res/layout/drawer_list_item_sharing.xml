@@ -34,7 +34,7 @@
         android:layout_centerVertical="true"
         android:layout_alignParentEnd="true"
         android:layout_marginRight="10dp"
-        android:src="@drawable/delete_4" />
+        android:src="@drawable/delete_3" />
 
 
 
