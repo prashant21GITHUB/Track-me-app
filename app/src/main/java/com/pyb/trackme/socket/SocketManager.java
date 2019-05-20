@@ -107,6 +107,15 @@ public class SocketManager {
         });
     }
 
+    public void sendEventMessage(String event, JSONObject jsonObject, final IAckListener listener) {
+        mSocket.emit(event, jsonObject, new Ack() {
+            @Override
+            public void call(Object... args) {
+                listener.onReply(args);
+            }
+        });
+    }
+
 
     public void sendEventMessage(String event, JSONObject jsonObject) {
         mSocket.emit(event, jsonObject);

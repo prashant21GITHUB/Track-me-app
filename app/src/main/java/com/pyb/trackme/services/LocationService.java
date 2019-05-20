@@ -32,6 +32,7 @@ import com.pyb.trackme.cache.TrackDetailsDB;
 import com.pyb.trackme.receiver.LocationServiceChangeReceiver;
 import com.pyb.trackme.receiver.NetworkChangeReceiver;
 import com.pyb.trackme.socket.IConnectionListener;
+import com.pyb.trackme.socket.IEventListener;
 import com.pyb.trackme.socket.ISocketConnectionListener;
 import com.pyb.trackme.socket.SocketManager;
 import com.pyb.trackme.utils.ConnectionUtils;
@@ -62,6 +63,7 @@ public class LocationService extends Service {
     private LocationServiceChangeReceiver locationServiceChangeReceiver;
     private Handler handler;
     private TrackDetailsDB db;
+    private boolean activeSubscribersAvailable;
 
     @Override
     public IBinder onBind(Intent intent) {
@@ -74,6 +76,7 @@ public class LocationService extends Service {
         super.onCreate();
         LOGIN_PREF_NAME = getApplicationInfo().packageName +"_Login";
         socketManager = ((TrackMeApplication)getApplication()).getSocketManager();
+        initializeSocketEventListeners();
         db = TrackDetailsDB.db();
         showForegroundNotification();
 
@@ -94,7 +97,9 @@ public class LocationService extends Service {
                 if(ConnectionUtils.isLocationServiceOn(LocationService.this)) {
                     cancelSharingStoppedNotification();
 //                        showForegroundNotification();
-                    resumeSendingLocationUpdates();
+                    if(activeSubscribersAvailable) {
+                        resumeSendingLocationUpdates();
+                    }
                 }
             };
 
@@ -127,7 +132,9 @@ public class LocationService extends Service {
                 if (ConnectionUtils.isConnectedToInternet(LocationService.this)) {
                     cancelSharingStoppedNotification();
 //                        showForegroundNotification();
-                    resumeSendingLocationUpdates();
+                    if(activeSubscribersAvailable) {
+                        resumeSendingLocationUpdates();
+                    }
                 }
             };
 
@@ -153,6 +160,28 @@ public class LocationService extends Service {
         });
 
         Log.d(TAG, "Service Created");
+    }
+
+    private void initializeSocketEventListeners() {
+        socketManager.onEvent("stopSendingLocation", new IEventListener() {
+            @Override
+            public void onEvent(String event, Object[] args) {
+                activeSubscribersAvailable = false;
+                stopSendingLocationUpdates();
+            }
+        });
+        socketManager.onEvent("startSendingLocation", new IEventListener() {
+            @Override
+            public void onEvent(String event, Object[] args) {
+                handler.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        activeSubscribersAvailable = true;
+                        resumeSendingLocationUpdates();
+                    }
+                });
+            }
+        });
     }
 
     private void showForegroundNotification() {
@@ -188,7 +217,7 @@ public class LocationService extends Service {
             connectToServer();
         } else {
             sendEventToPublishLocationData();
-            resumeSendingLocationUpdates();
+//            resumeSendingLocationUpdates();
         }
         registerNetworkChangeReceiver();
         registerLocationServiceChangeReceiver();
@@ -218,12 +247,12 @@ public class LocationService extends Service {
                     socketManager.sendEventMessage("connectedMobile", loggedInMobile);
                 }
                 sendEventToPublishLocationData();
-                handler.post(new Runnable() {
-                    @Override
-                    public void run() {
-                        resumeSendingLocationUpdates();
-                    }
-                });
+//                handler.post(new Runnable() {
+//                    @Override
+//                    public void run() {
+//                        resumeSendingLocationUpdates();
+//                    }
+//                });
             }
 
             @Override
@@ -239,7 +268,7 @@ public class LocationService extends Service {
                 && ContextCompat.checkSelfPermission(getApplicationContext(), Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
             mFusedLocationClient = LocationServices.getFusedLocationProviderClient(getApplicationContext());
             mFusedLocationClient.requestLocationUpdates(mLocationRequest, mLocationCallback, Looper.myLooper());
-            Log.i(TAG, "resumeSendingLocationUpdates");
+            Log.d(TAG, "Resume sending location updates");;
         } else {
             Log.e(TAG, "ACCESS_FINE_LOCATION or ACCESS_COARSE_LOCATION permissions not granted");
         }
@@ -322,6 +351,7 @@ public class LocationService extends Service {
     }
 
     private void stopSendingLocationUpdates() {
+        Log.d("TrackMe_LocationService", "Stop sending location updates");
         if(mFusedLocationClient != null) {
             mFusedLocationClient.flushLocations();
             mFusedLocationClient.removeLocationUpdates(mLocationCallback);

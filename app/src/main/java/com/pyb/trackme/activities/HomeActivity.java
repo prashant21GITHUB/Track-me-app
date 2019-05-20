@@ -676,7 +676,14 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
     }
 
     private void subscribeToContact(final String contact) {
-        socketManager.sendEventMessage("subscribe", contact, new IAckListener() {
+        JSONObject jsonObject = new JSONObject();
+        try {
+            jsonObject.put("publisher", contact);
+            jsonObject.put("subscriber", loggedInMobile);
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+        socketManager.sendEventMessage("subscribe", jsonObject, new IAckListener() {
             @Override
             public void onReply(Object[] args) {
                 final JSONObject data = (JSONObject) args[0];
@@ -714,7 +721,14 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
     }
 
     private void unsubscribeToContact(String contact) {
-        socketManager.sendEventMessage("unsubscribe", contact, new IAckListener() {
+        JSONObject jsonObject = new JSONObject();
+        try {
+            jsonObject.put("publisher", contact);
+            jsonObject.put("subscriber", loggedInMobile);
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+        socketManager.sendEventMessage("unsubscribe", jsonObject, new IAckListener() {
             @Override
             public void onReply(Object[] args) {
                 final JSONObject data = (JSONObject) args[0];
