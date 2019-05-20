@@ -868,8 +868,8 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
         Marker currLocationMarker = currLocationMarkerMap.get(trackingContact);
         if(currLocationMarker == null) {
             MarkerOptions markerOptions = new MarkerOptions()
-            .position(latLng)
-            .title(trackingContact)
+                    .position(latLng)
+                    .title(trackingContact)
                     .draggable(false).anchor(0.5f, 0.7f)
                     .icon(BitmapDescriptorFactory.defaultMarker(lineAndIconColorPair.second));
 
@@ -952,7 +952,7 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
                 .setPositiveButton("Cancel", new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
-                       return;
+                        return;
                     }
                 })
                 .setNegativeButton("Yes", new DialogInterface.OnClickListener() {
