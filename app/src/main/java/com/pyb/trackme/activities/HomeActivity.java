@@ -94,6 +94,7 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
     private static final int REQUEST_CODE_PICK_SHARE_CONTACT = 131;
     private static final int REQUEST_CODE_PICK_TRACK_CONTACT = 133;
     private final long DELAY_IN_MILLIS = 5000L;
+    private final TrackDetailsDB db = TrackDetailsDB.db();
 
     private String loggedInName;
     private String loggedInMobile;
@@ -157,6 +158,7 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
                 getTrackingDetailsFromServerAndInitiliazeSocket();
             } else {
                 initializeSharingAndTrackingContactsList();
+                subscribeToTrackContacts();
             }
         } else {
             initializeSharingAndTrackingContactsList();
@@ -178,28 +180,7 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
     }
 
     private void attachItemClickListeners() {
-//        trackingListView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
-//            @Override
-//            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-//                mDrawerLayout.closeDrawer(Gravity.START, true);
-//                String contact = trackingContactsList.get(position).first;
-//                currentFocussedContactOnMap = contact;
-//                Marker marker = currLocationMarkerMap.get(contact);
-//                if (marker != null) {
-//                    googleMap.animateCamera(CameraUpdateFactory.newLatLngZoom(marker.getPosition(), 16));
-//                    marker.showInfoWindow();
-//                }
-//
-//            }
-//        });
-//        trackingListView.setOnItemLongClickListener(new AdapterView.OnItemLongClickListener() {
-//            @Override
-//            public boolean onItemLongClick(AdapterView<?> parent, View view, int position, long id) {
-//                showDialogToStartStopTracking(position);
-//                return true;
-//            }
-//        });
-        trackingContactsExpandableListView.setOnItemLongClickListener(new AdapterView.OnItemLongClickListener() {
+        /*trackingContactsExpandableListView.setOnItemLongClickListener(new AdapterView.OnItemLongClickListener() {
             @Override
             public boolean onItemLongClick(AdapterView<?> parent, View view, int position, long id) {
                 showDialogToStartStopTracking(position);
@@ -218,7 +199,7 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
                     marker.showInfoWindow();
                 }
             }
-        });
+        });*/
         trackingContactsExpandableListView.setOnChildClickListener(new ExpandableListView.OnChildClickListener() {
             //In our case, groupPosition is always 1 as there is 1 group ony
             @Override
@@ -276,48 +257,44 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
 
     private void connectToServer() {
         if (alreadyConnectedToServer) {
+            subscribeToTrackContacts();
             return;
         }
         socketManager.onEvent("publisherAvailable", new IEventListener() {
             @Override
             public void onEvent(String event, Object[] args) {
                 String mobile = (String) args[0];
-                if(TrackDetailsDB.db().getTrackingStatus(mobile)) {
+                if(db.getTrackingStatus(mobile)) {
                     subscribeToContact(mobile);
+                    if(isActivityRunning) {
+                        HomeActivity.this.runOnUiThread(() -> {
+                            Toast.makeText(HomeActivity.this, mobile + " started sharing his location", Toast.LENGTH_SHORT).show();
+                        });
+                    }
                 }
-//                HomeActivity.this.runOnUiThread(() -> {
-//                    Toast.makeText(HomeActivity.this, mobile + " started sharing his location", Toast.LENGTH_SHORT).show();
-//                });
-
             }
         });
         socketManager.onEvent("publisherNotAvailable", (event, args) -> {
             String mobile = (String) args[0];
-//            int position = getPositionInTrackingList(mobile);
-//            if(position == -1) return;
-//            trackingContactsList.remove(position);
-//            trackingContactsList.add(mobile);
-            HomeActivity.this.runOnUiThread(() -> {
-//                trackingListViewAdapter.notifyDataSetChanged();
-//                trackingExpandableListViewAdapter.notifyDataSetChanged();
-                Toast.makeText(HomeActivity.this, mobile + " has stopped sharing location !!", Toast.LENGTH_SHORT).show();
-                updateSnippetOnMap(mobile, "Not live");
-            });
-
+            if(db.getTrackingStatus(mobile)) {
+                HomeActivity.this.runOnUiThread(() -> {
+                    if(isActivityRunning) {
+                        Toast.makeText(HomeActivity.this, mobile + " has stopped sharing location !!", Toast.LENGTH_SHORT).show();
+                    }
+                    updateSnippetOnMap(mobile, "Not live");
+                });
+            }
         });
         socketManager.onEvent("notLive", (event, args) -> {
             String mobile = (String) args[0];
-            int position = getPositionInTrackingList(mobile);
-            if(position == -1) return;
-            trackingContactsList.remove(position);
-            trackingContactsList.add(mobile);
-            HomeActivity.this.runOnUiThread(() -> {
-//                trackingListViewAdapter.notifyDataSetChanged();
-                trackingExpandableListViewAdapter.notifyDataSetChanged();
-                Toast.makeText(HomeActivity.this, mobile + " is not live !!", Toast.LENGTH_SHORT).show();
-                updateSnippetOnMap(mobile, "Not live");
-            });
-
+            if(db.getTrackingStatus(mobile)) {
+                HomeActivity.this.runOnUiThread(() -> {
+                    if (isActivityRunning) {
+                        Toast.makeText(HomeActivity.this, mobile + " is not live !!", Toast.LENGTH_SHORT).show();
+                    }
+                    updateSnippetOnMap(mobile, "Not live");
+                });
+            }
         });
         socketManager.connect(socketConnectionListener);
         alreadyConnectedToServer = true;
