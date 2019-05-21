@@ -20,7 +20,6 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.provider.ContactsContract;
-import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v4.widget.DrawerLayout;
@@ -31,15 +30,12 @@ import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
 import android.util.Pair;
-import android.view.DragEvent;
 import android.view.Gravity;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
-import android.widget.AdapterView;
 import android.widget.CompoundButton;
 import android.widget.ExpandableListView;
-import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.ProgressBar;
 import android.widget.Switch;
@@ -62,10 +58,10 @@ import com.pyb.trackme.adapter.TrackingExpandableListViewAdapter;
 import com.pyb.trackme.cache.TrackDetailsDB;
 import com.pyb.trackme.receiver.LocationServiceChangeReceiver;
 import com.pyb.trackme.receiver.NetworkChangeReceiver;
+import com.pyb.trackme.restclient.AddRemoveContactRequest;
 import com.pyb.trackme.restclient.MobileRequest;
 import com.pyb.trackme.restclient.RestClient;
 import com.pyb.trackme.restclient.ServiceResponse;
-import com.pyb.trackme.restclient.AddRemoveContactRequest;
 import com.pyb.trackme.restclient.TrackingDetailsResponse;
 import com.pyb.trackme.restclient.TrackingServiceClient;
 import com.pyb.trackme.services.LocationService;
@@ -182,26 +178,6 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
     }
 
     private void attachItemClickListeners() {
-        /*trackingContactsExpandableListView.setOnItemLongClickListener(new AdapterView.OnItemLongClickListener() {
-            @Override
-            public boolean onItemLongClick(AdapterView<?> parent, View view, int position, long id) {
-                showDialogToStartStopTracking(position);
-                return true;
-            }
-        });
-        trackingContactsExpandableListView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
-            @Override
-            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-                mDrawerLayout.closeDrawer(Gravity.START, true);
-                String contact = trackingContactsList.get(position);
-                currentFocussedContactOnMap = contact;
-                Marker marker = currLocationMarkerMap.get(contact);
-                if (marker != null) {
-                    googleMap.animateCamera(CameraUpdateFactory.newLatLngZoom(marker.getPosition(), 16));
-                    marker.showInfoWindow();
-                }
-            }
-        });*/
         trackingContactsExpandableListView.setOnChildClickListener(new ExpandableListView.OnChildClickListener() {
             //In our case, groupPosition is always 1 as there is 1 group ony
             @Override
@@ -221,28 +197,6 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
                 return true;
             }
         });
-    }
-
-    private void showDialogToStartStopTracking(int position) {
-        String contact = trackingContactsList.get(position);
-        AlertDialog.Builder builder = new AlertDialog.Builder(HomeActivity.this)
-                .setTitle("Track")
-                .setMessage(contact)
-                .setCancelable(true)
-                .setPositiveButton("Start", new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int which) {
-                        subscribeToContact(contact);
-                    }
-                })
-                .setNegativeButton("Stop", new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int which) {
-                        unsubscribeToContact(contact);
-                    }
-                });
-        AlertDialog alert = builder.create();
-        alert.show();
     }
 
     private void initializeSwipeRefreshLayout() {
@@ -420,7 +374,6 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
                                 }
                                 db.deleteContactFromSharingList(sharingContactsList.get(position));
                                 sharingContactsList.remove(position);
-//                                sharingListViewAdapter.notifyDataSetChanged();
                                 sharingExpandableListViewAdapter.notifyDataSetChanged();
                                 if (sharingContactsList.isEmpty()) {
                                     stopLocationSharingService();
@@ -433,7 +386,6 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
                         } else {
                             Toast.makeText(HomeActivity.this, "Internal error, " + response.message(), Toast.LENGTH_SHORT).show();
                         }
-//                        mDrawerLayout.closeDrawer(Gravity.START, true);
                     }
 
                     @Override
@@ -661,20 +613,6 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
         }
     }
 
-    private int getPositionInTrackingList(String contact) {
-        int position = 0;
-        boolean found = false;
-        for (String number : trackingContactsList) {
-            if (contact.equals(number)) {
-                found = true;
-                break;
-            } else {
-                position++;
-            }
-        }
-        return found ? position : -1;
-    }
-
     private void subscribeToContact(final String contact) {
         JSONObject jsonObject = new JSONObject();
         try {
@@ -766,7 +704,6 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
             } catch (JSONException e) {
                 e.printStackTrace();
             }
-//            trackingListViewAdapter.notifyDataSetChanged();
             trackingExpandableListViewAdapter.notifyDataSetChanged();
 
         });
@@ -975,6 +912,7 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
                 .setNegativeButton("Yes", new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
+                        unsubscribeCurrentContactsGettingTracked();
                         stopService(new Intent(getApplicationContext(), LocationService.class));
                         socketManager.hardDisconnect();
                         clearAllDetailsFromPref();
@@ -990,11 +928,6 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
     public void onResume() {
         super.onResume();
         isActivityRunning = true;
-//        if(!ConnectionUtils.isConnectedToInternet(this) || !ConnectionUtils.isLocationServiceOn(this)) {
-////            changeSwichStatusWithoutListener(false);
-//            connectionAlertTextView.setText("Turn on location and connect to internet !!");
-//            connectionAlertTextView.setVisibility(View.VISIBLE);
-//        }
         IntentFilter filter = new IntentFilter();
         filter.addAction("android.net.conn.CONNECTIVITY_CHANGE");
 //        filter.addAction(getPackageName() + "android.net.wifi.WIFI_STATE_CHANGED");  ///TODO check if this intent filter is needed ?
@@ -1016,10 +949,6 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
             private final Runnable onConnectRunner = () -> {
                 if(ConnectionUtils.isConnectedToInternet(HomeActivity.this)) {
                     connectionAlertTextView.setVisibility(View.GONE);
-//                    getTrackingDetailsFromServerAndInitiliazeSocket();
-//                        if(locationSharingStatus) {
-//                            changeSwichStatusWithoutListener(true);
-//                        }
                 }
             };
 
@@ -1027,7 +956,6 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
                 if(!ConnectionUtils.isConnectedToInternet(HomeActivity.this)) {
                     connectionAlertTextView.setText("Internet not available !!");
                     connectionAlertTextView.setVisibility(View.VISIBLE);
-//                        changeSwichStatusWithoutListener(false);
                 }
             };
 
@@ -1045,20 +973,11 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
         });
     }
 
-    private void changeSwichStatusWithoutListener(boolean checked) {
-        sharingSwitch.setOnCheckedChangeListener(null);
-        sharingSwitch.setChecked(checked);
-        sharingSwitch.setOnCheckedChangeListener(sharingSwitchListener);
-    }
-
     private void initializeReceiverForLocationServiceEvents() {
         locationServiceChangeReceiver = new LocationServiceChangeReceiver(new IConnectionListener() {
             private final Runnable onConnectRunner = () -> {
                 if(ConnectionUtils.isLocationServiceOn(HomeActivity.this)) {
                     locationAlertTextView.setVisibility(View.GONE);
-//                        if(locationSharingStatus) {
-////                            changeSwichStatusWithoutListener(true);
-//                        }
                 }
             };
 
@@ -1066,7 +985,6 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
                 if(!ConnectionUtils.isLocationServiceOn(HomeActivity.this)) {
                     locationAlertTextView.setText("Turn on location service !!");
                     locationAlertTextView.setVisibility(View.VISIBLE);
-//                        changeSwichStatusWithoutListener(false);
                 }
             };
 
@@ -1099,12 +1017,26 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
         //token passed as null, so that it can remove all runners
         handler.removeCallbacksAndMessages(null);
         if(socketManager != null) {
+            unsubscribeCurrentContactsGettingTracked();
             socketManager.offEvent("publisherAvailable");
             socketManager.offEvent("publisherNotAvailable");
             socketManager.softDisconnect(socketConnectionListener);
         }
         if(googleMap != null) {
             googleMap.clear();
+        }
+    }
+
+    private void unsubscribeCurrentContactsGettingTracked() {
+        for(String trackingContact : db.getCurrentContactsGettingTracked()) {
+            JSONObject jsonObject = new JSONObject();
+            try {
+                jsonObject.put("publisher", trackingContact);
+                jsonObject.put("subscriber", loggedInMobile);
+            } catch (JSONException e) {
+                e.printStackTrace();
+            }
+            socketManager.sendEventMessage("unsubscribe", jsonObject);
         }
     }
 

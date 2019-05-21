@@ -3,16 +3,16 @@ package com.pyb.trackme.cache;
 import android.content.Context;
 import android.content.SharedPreferences;
 
-import com.google.gson.JsonObject;
-
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -154,5 +154,15 @@ public class TrackDetailsDB {
             }
         }
         return false;
+    }
+
+    public List<String> getCurrentContactsGettingTracked() {
+        List<String> subscribers = new ArrayList<>();
+        for(Map.Entry<String, Boolean> entry : trackingContactStatus.entrySet()) {
+            if(entry.getValue()) {
+                subscribers.add(entry.getKey());
+            }
+        }
+        return subscribers;
     }
 }

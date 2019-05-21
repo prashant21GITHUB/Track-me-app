@@ -95,30 +95,38 @@ public class SocketManager {
     }
 
     public void sendEventMessage(String event, String message) {
-        mSocket.emit(event, message);
+        if(mSocket.connected()) {
+            mSocket.emit(event, message);
+        }
     }
 
     public void sendEventMessage(String event, String message, final IAckListener listener) {
-        mSocket.emit(event, message, new Ack() {
-            @Override
-            public void call(Object... args) {
-                listener.onReply(args);
-            }
-        });
+        if(mSocket.connected()) {
+            mSocket.emit(event, message, new Ack() {
+                @Override
+                public void call(Object... args) {
+                    listener.onReply(args);
+                }
+            });
+        }
     }
 
     public void sendEventMessage(String event, JSONObject jsonObject, final IAckListener listener) {
-        mSocket.emit(event, jsonObject, new Ack() {
-            @Override
-            public void call(Object... args) {
-                listener.onReply(args);
-            }
-        });
+        if(mSocket.connected()) {
+            mSocket.emit(event, jsonObject, new Ack() {
+                @Override
+                public void call(Object... args) {
+                    listener.onReply(args);
+                }
+            });
+        }
     }
 
 
     public void sendEventMessage(String event, JSONObject jsonObject) {
-        mSocket.emit(event, jsonObject);
+        if(mSocket.connected()) {
+            mSocket.emit(event, jsonObject);
+        }
     }
 
     public void offEvent(String event) {
@@ -137,6 +145,8 @@ public class SocketManager {
     }
 
     public void sendEventMessage(String event, JSONArray jsonArray) {
-        mSocket.emit(event, jsonArray);
+        if(mSocket.connected()) {
+            mSocket.emit(event, jsonArray);
+        }
     }
 }
