@@ -20,6 +20,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.provider.ContactsContract;
+import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v4.widget.DrawerLayout;
@@ -50,6 +51,13 @@ import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
+import com.google.android.gms.tasks.OnCompleteListener;
+import com.google.android.gms.tasks.OnFailureListener;
+import com.google.android.gms.tasks.OnSuccessListener;
+import com.google.android.gms.tasks.Task;
+import com.google.firebase.FirebaseApp;
+import com.google.firebase.iid.FirebaseInstanceId;
+import com.google.firebase.iid.InstanceIdResult;
 import com.pyb.trackme.R;
 import com.pyb.trackme.TrackMeApplication;
 import com.pyb.trackme.adapter.IOnTrackingContactFocusListener;
@@ -94,7 +102,8 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
     private static final int REQUEST_CODE_PICK_TRACK_CONTACT = 133;
     private final long DELAY_IN_MILLIS = 5000L;
     private final TrackDetailsDB db = TrackDetailsDB.db();
-    private final boolean TEST_MODE = true;
+    private final boolean TEST_MODE = false;
+    private final String TAG = "TrackMe_HomeActivity";
 
     private String loggedInName;
     private String loggedInMobile;
@@ -140,6 +149,23 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.home_activity);
+        FirebaseApp.initializeApp(this);
+        FirebaseInstanceId.getInstance().getInstanceId().addOnCompleteListener(this, new OnCompleteListener<InstanceIdResult>() {
+            @Override
+            public void onComplete(@NonNull Task<InstanceIdResult> task) {
+                Log.d(TAG, task.getResult().getId());
+            }
+        }).addOnFailureListener(new OnFailureListener() {
+            @Override
+            public void onFailure(@NonNull Exception e) {
+                Log.d(TAG, e.getMessage());
+            }
+        }).addOnSuccessListener(new OnSuccessListener<InstanceIdResult>() {
+            @Override
+            public void onSuccess(InstanceIdResult instanceIdResult) {
+                Log.d(TAG, instanceIdResult.getId());
+            }
+        });
         LOGIN_PREF_NAME = getApplicationInfo().packageName + "_Login";
         readLoggedInUserDetailsAndLocationSharingStatus();
         Toolbar toolbar = findViewById(R.id.toolbar);

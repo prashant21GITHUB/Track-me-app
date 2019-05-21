@@ -13,4 +13,7 @@ public class AppConstants {
     public static final String TRACKING_CONTACTS_VIEW = "TRACKING_CONTACTS_VIEW";
     public static final String GROUP_CONTACTS_VIEW = "GROUP_CONTACTS_VIEW";
 
+    public static final int NOTIFICATION_ID_FOR_FCM_PUSH_NOTIFICATION = 1363;
+    public static final String NOTIFICATION_CHANNEL_ID = "TrackMe_Notification_Channel";
+
 }

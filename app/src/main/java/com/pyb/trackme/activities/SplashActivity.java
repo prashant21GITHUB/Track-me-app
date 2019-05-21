@@ -37,7 +37,7 @@ public class SplashActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        FirebaseApp.initializeApp(getApplicationContext());
+
 //        new Handler().post(() -> {
 //            String id = FirebaseInstanceId.getInstance().getId();
 //            Log.d("TrackMe_SplashActivity", "Token: " + id);
