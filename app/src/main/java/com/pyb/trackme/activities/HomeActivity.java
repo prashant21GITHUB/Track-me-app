@@ -76,6 +76,7 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -93,6 +94,7 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
     private static final int REQUEST_CODE_PICK_TRACK_CONTACT = 133;
     private final long DELAY_IN_MILLIS = 5000L;
     private final TrackDetailsDB db = TrackDetailsDB.db();
+    private final boolean TEST_MODE = false;
 
     private String loggedInName;
     private String loggedInMobile;
@@ -304,8 +306,13 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
     }
 
     private void initializeSharingAndTrackingContactsList() {
-        sharingContactsList = new ArrayList<>(db.getContactsToShareLocation());
-        trackingContactsList = new ArrayList<>(db.getContactsToTrackLocation());
+        if(TEST_MODE) {
+            sharingContactsList = Arrays.asList("9999999999", "8888888888");
+            trackingContactsList = Arrays.asList("7777777777", "6666666666");
+        } else {
+            sharingContactsList = new ArrayList<>(db.getContactsToShareLocation());
+            trackingContactsList = new ArrayList<>(db.getContactsToTrackLocation());
+        }
         sharingExpandableListViewAdapter = new SharingExpandableListViewAdapter(this, sharingContactsList, this, this);
         trackingExpandableListViewAdapter = new TrackingExpandableListViewAdapter(this, trackingContactsList, this, this, this);
         sharingContactsExpandableListView.setAdapter(sharingExpandableListViewAdapter);
