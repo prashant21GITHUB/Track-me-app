@@ -2,3 +2,8 @@ app/build/
 app/libs/
 gradle/
 gradle.properties
+.idea/
+app/app.iml
+local.properties
+.gradle/
+
