@@ -94,7 +94,7 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
     private static final int REQUEST_CODE_PICK_TRACK_CONTACT = 133;
     private final long DELAY_IN_MILLIS = 5000L;
     private final TrackDetailsDB db = TrackDetailsDB.db();
-    private final boolean TEST_MODE = false;
+    private final boolean TEST_MODE = true;
 
     private String loggedInName;
     private String loggedInMobile;

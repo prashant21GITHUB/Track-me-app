@@ -6,9 +6,13 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.support.v4.widget.SwipeRefreshLayout;
 import android.support.v7.app.AppCompatActivity;
+import android.util.Log;
 import android.view.View;
 import android.widget.Toast;
 
+import com.google.firebase.FirebaseApp;
+import com.google.firebase.iid.FirebaseInstanceId;
+import com.google.firebase.messaging.FirebaseMessaging;
 import com.pyb.trackme.R;
 import com.pyb.trackme.cache.TrackDetailsDB;
 import com.pyb.trackme.restclient.MobileRequest;
@@ -33,6 +37,12 @@ public class SplashActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        FirebaseApp.initializeApp(getApplicationContext());
+//        new Handler().post(() -> {
+//            String id = FirebaseInstanceId.getInstance().getId();
+//            Log.d("TrackMe_SplashActivity", "Token: " + id);
+//        });
+
         setContentView(R.layout.splash_activity);
         LOGIN_PREF_NAME = getApplicationInfo().packageName +"_Login";
         readLoggedInUserDetails();
