@@ -11,9 +11,15 @@ public interface LoginServiceClient {
     @PUT("user/login")
     Call<LoginResponse> login(@Body LoginRequest loginRequest);
 
+    @PUT("user/logout")
+    Call<ServiceResponse> logout(@Body MobileRequest loginRequest);
+
     @POST("user/register")
     Call<LoginResponse> register(@Body LoginRequest loginRequest);
 
     @PUT("user/isregistered")
     Call<ServiceResponse> isUserRegistered(@Body MobileRequest mobile);
+
+    @POST("device/addtoken")
+    Call<ServiceResponse> addFCMToken(@Body AddTokenRequest addTokenRequest);
 }

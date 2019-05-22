@@ -4,16 +4,11 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.os.Handler;
-import android.support.v4.widget.SwipeRefreshLayout;
 import android.support.v7.app.AppCompatActivity;
-import android.util.Log;
-import android.view.View;
 import android.widget.Toast;
 
-import com.google.firebase.FirebaseApp;
-import com.google.firebase.iid.FirebaseInstanceId;
-import com.google.firebase.messaging.FirebaseMessaging;
 import com.pyb.trackme.R;
+import com.pyb.trackme.cache.AppConstants;
 import com.pyb.trackme.cache.TrackDetailsDB;
 import com.pyb.trackme.restclient.MobileRequest;
 import com.pyb.trackme.restclient.RestClient;
@@ -33,27 +28,27 @@ public class SplashActivity extends AppCompatActivity {
     private String LOGIN_PREF_NAME;
     private String loggedInName;
     private String loggedInMobile;
+    private String fcmToken;
+    private final String TAG = "TrackMe_SplashActivity";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-
-//        new Handler().post(() -> {
-//            String id = FirebaseInstanceId.getInstance().getId();
-//            Log.d("TrackMe_SplashActivity", "Token: " + id);
-//        });
-
         setContentView(R.layout.splash_activity);
         LOGIN_PREF_NAME = getApplicationInfo().packageName +"_Login";
-        readLoggedInUserDetails();
+        readDetailsFromPref();
+        if(!checkIfUserAlreadyLoggedIn()) {
+            Intent i = new Intent(SplashActivity.this, LoginActivity.class);
+            startActivity(i);
+            finish();
+            return;
+        }
         getTrackingDetails();
         new Handler().postDelayed(new Runnable() {
             @Override
             public void run() {
                 // This method will be executed once the timer is over
                 Intent i = new Intent(SplashActivity.this, HomeActivity.class);
-                i.putExtra("name", loggedInName);
-                i.putExtra("mobile", loggedInMobile);
                 startActivity(i);
                 finish();
             }
@@ -100,11 +95,17 @@ public class SplashActivity extends AppCompatActivity {
         });
     }
 
-    private void readLoggedInUserDetails() {
+    private void readDetailsFromPref() {
         SharedPreferences preferences = this.getSharedPreferences(LOGIN_PREF_NAME, MODE_PRIVATE);
-        String mobile = preferences.getString("Mobile", "");
-        String name = preferences.getString("Name", "");
+        String mobile = preferences.getString(AppConstants.MOBILE_PREF, "");
+        String name = preferences.getString(AppConstants.NAME_PREF, "");
+        String token = preferences.getString(AppConstants.FCM_TOKEN, "");
         loggedInName = name;
         loggedInMobile = mobile;
+        fcmToken = token;
+    }
+
+    private boolean checkIfUserAlreadyLoggedIn() {
+        return !loggedInMobile.isEmpty() && !loggedInName.isEmpty();
     }
 }

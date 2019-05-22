@@ -20,7 +20,6 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.provider.ContactsContract;
-import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v4.widget.DrawerLayout;
@@ -51,13 +50,6 @@ import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
-import com.google.android.gms.tasks.OnCompleteListener;
-import com.google.android.gms.tasks.OnFailureListener;
-import com.google.android.gms.tasks.OnSuccessListener;
-import com.google.android.gms.tasks.Task;
-import com.google.firebase.FirebaseApp;
-import com.google.firebase.iid.FirebaseInstanceId;
-import com.google.firebase.iid.InstanceIdResult;
 import com.pyb.trackme.R;
 import com.pyb.trackme.TrackMeApplication;
 import com.pyb.trackme.adapter.IOnTrackingContactFocusListener;
@@ -67,6 +59,7 @@ import com.pyb.trackme.cache.TrackDetailsDB;
 import com.pyb.trackme.receiver.LocationServiceChangeReceiver;
 import com.pyb.trackme.receiver.NetworkChangeReceiver;
 import com.pyb.trackme.restclient.AddRemoveContactRequest;
+import com.pyb.trackme.restclient.LoginServiceClient;
 import com.pyb.trackme.restclient.MobileRequest;
 import com.pyb.trackme.restclient.RestClient;
 import com.pyb.trackme.restclient.ServiceResponse;
@@ -149,23 +142,6 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.home_activity);
-        FirebaseApp.initializeApp(this);
-        FirebaseInstanceId.getInstance().getInstanceId().addOnCompleteListener(this, new OnCompleteListener<InstanceIdResult>() {
-            @Override
-            public void onComplete(@NonNull Task<InstanceIdResult> task) {
-                Log.d(TAG, task.getResult().getId());
-            }
-        }).addOnFailureListener(new OnFailureListener() {
-            @Override
-            public void onFailure(@NonNull Exception e) {
-                Log.d(TAG, e.getMessage());
-            }
-        }).addOnSuccessListener(new OnSuccessListener<InstanceIdResult>() {
-            @Override
-            public void onSuccess(InstanceIdResult instanceIdResult) {
-                Log.d(TAG, instanceIdResult.getId());
-            }
-        });
         LOGIN_PREF_NAME = getApplicationInfo().packageName + "_Login";
         readLoggedInUserDetailsAndLocationSharingStatus();
         Toolbar toolbar = findViewById(R.id.toolbar);
@@ -945,16 +921,42 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
                 .setNegativeButton("Yes", new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
+                        logoutFromServer();
+                    }
+                });
+        AlertDialog alert = builder.create();
+        alert.show();
+    }
+
+    private void logoutFromServer() {
+        progressBar.setVisibility(View.VISIBLE);
+        LoginServiceClient client = RestClient.getLoginServiceClient();
+        Call<ServiceResponse> call = client.logout(new MobileRequest(loggedInMobile));
+        call.enqueue(new Callback<ServiceResponse>() {
+            @Override
+            public void onResponse(Call<ServiceResponse> call, Response<ServiceResponse> response) {
+                progressBar.setVisibility(View.GONE);
+                if(response.isSuccessful()) {
+                    ServiceResponse serviceResponse = response.body();
+                    if(serviceResponse.isSuccess()) {
                         unsubscribeCurrentContactsGettingTracked();
                         stopService(new Intent(getApplicationContext(), LocationService.class));
                         socketManager.hardDisconnect();
                         clearAllDetailsFromPref();
                         Intent intent = new Intent(HomeActivity.this, LoginActivity.class);
                         startActivity(intent);
+                        finish();
                     }
-                });
-        AlertDialog alert = builder.create();
-        alert.show();
+                } else {
+                    Toast.makeText(HomeActivity.this, "Internal error, " + response.message(), Toast.LENGTH_SHORT).show();
+                }
+            }
+
+            @Override
+            public void onFailure(Call<ServiceResponse> call, Throwable t) {
+                progressBar.setVisibility(View.GONE);
+            }
+        });
     }
 
     @Override
@@ -1069,7 +1071,12 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
             } catch (JSONException e) {
                 e.printStackTrace();
             }
-            socketManager.sendEventMessage("unsubscribe", jsonObject);
+            socketManager.sendEventMessage("unsubscribe", jsonObject, new IAckListener() {
+                @Override
+                public void onReply(Object[] args) {
+
+                }
+            });
         }
     }
 
