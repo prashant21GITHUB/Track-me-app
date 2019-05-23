@@ -87,12 +87,17 @@ import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
 
+import static com.pyb.trackme.fcm.MessageAction.STARTED_SHARING;
+import static com.pyb.trackme.fcm.MessageAction.TRACKING_REQUEST;
+
 
 public class HomeActivity extends AppCompatActivity implements OnMapReadyCallback,
         IRemoveContactButtonClickListener, IOnTrackingContactFocusListener, IPerContactSwitchListener {
 
     private static final int REQUEST_CODE_PICK_SHARE_CONTACT = 131;
     private static final int REQUEST_CODE_PICK_TRACK_CONTACT = 133;
+    private String TRACKING_REQUEST_NOTI;
+    private String STARTED_SHARING_NOTI;
     private final long DELAY_IN_MILLIS = 5000L;
     private final TrackDetailsDB db = TrackDetailsDB.db();
     private final boolean TEST_MODE = false;
@@ -143,6 +148,8 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
         super.onCreate(savedInstanceState);
         setContentView(R.layout.home_activity);
         LOGIN_PREF_NAME = getApplicationInfo().packageName + "_Login";
+        TRACKING_REQUEST_NOTI = getApplicationInfo().packageName + "_" + TRACKING_REQUEST.name();
+        STARTED_SHARING_NOTI = getApplicationInfo().packageName + "_" + STARTED_SHARING.name();
         readLoggedInUserDetailsAndLocationSharingStatus();
         Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
@@ -154,20 +161,7 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
         attachItemClickListeners();
 
         socketManager = ((TrackMeApplication) getApplication()).getSocketManager();
-        if (getIntent() != null && NOTIFICATION_CHANNEL_ID.equals(getIntent().getAction())) {
-            boolean isDataPresentInPref = db.readDataFromPref(getApplicationContext());
-            if(!isDataPresentInPref) {
-                getTrackingDetailsFromServerAndInitiliazeSocket();
-            } else {
-                initializeSharingAndTrackingContactsList();
-                subscribeToTrackContacts();
-            }
-        } else {
-            initializeSharingAndTrackingContactsList();
-            if (ConnectionUtils.isConnectedToInternet(this)) {
-                connectToServer();
-            }
-        }
+        handleIntents();
 
         initializeLocationSharingSwitch();
         initializeDrawerLayout(toolbar);
@@ -179,6 +173,86 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
         initializeReceiverForLocationServiceEvents();
         progressBar = findViewById(R.id.progressBarHomeActivity);
         handler = new Handler(Looper.getMainLooper());
+    }
+
+    private void handleIntents() {
+        if (getIntent() != null) {
+            boolean isDataPresentInPref = db.readDataFromPref(getApplicationContext());
+            if (!isDataPresentInPref) {
+                getTrackingDetailsFromServerAndInitiliazeSocket();
+            } else {
+                initializeSharingAndTrackingContactsList();
+                if (ConnectionUtils.isConnectedToInternet(this)) {
+                    connectToServer();
+                }
+            }
+
+            handlePushNotificationsIntents(getIntent());
+        } else {
+            initializeSharingAndTrackingContactsList();
+            if (ConnectionUtils.isConnectedToInternet(this)) {
+                connectToServer();
+            }
+        }
+    }
+
+    @Override
+    public void onNewIntent(Intent intent) {
+        handlePushNotificationsIntents(intent);
+
+    }
+
+    private void handlePushNotificationsIntents(Intent intent) {
+        if(TRACKING_REQUEST_NOTI.equals(intent.getAction())) {
+            String subscriber = intent.getStringExtra("SUBSCRIBER");
+            AlertDialog.Builder builder = new AlertDialog.Builder(this)
+                    .setTitle("Confirm")
+                    .setMessage("Add " + subscriber +" in your sharing list")
+                    .setNegativeButton("No", new DialogInterface.OnClickListener() {
+                        @Override
+                        public void onClick(DialogInterface dialog, int which) {
+                            dialog.cancel();
+                        }
+                    })
+                    .setPositiveButton("Yes", new DialogInterface.OnClickListener() {
+                        @Override
+                        public void onClick(DialogInterface dialog, int which) {
+                            if(!sharingContactsList.contains(subscriber)) {
+                                //TODO: how to get name of the subscriber
+                                addSharingContactIfRegistered(subscriber, subscriber);
+                            }
+                            mDrawerLayout.openDrawer(Gravity.START, true);
+                            trackingContactsExpandableListView.collapseGroup(0);
+                            sharingContactsExpandableListView.expandGroup(0);
+                        }
+                    });
+            builder.create().show();
+
+        } else if(STARTED_SHARING_NOTI.equals(intent.getAction())) {
+            String publisher = intent.getStringExtra("PUBLISHER");
+            AlertDialog.Builder builder = new AlertDialog.Builder(this)
+                    .setTitle("Confirm")
+                    .setMessage("Add " + publisher +" in your tracking list")
+                    .setNegativeButton("No", new DialogInterface.OnClickListener() {
+                        @Override
+                        public void onClick(DialogInterface dialog, int which) {
+                            dialog.cancel();
+                        }
+                    })
+                    .setPositiveButton("Yes", new DialogInterface.OnClickListener() {
+                        @Override
+                        public void onClick(DialogInterface dialog, int which) {
+                            if(!trackingContactsList.contains(publisher)) {
+                                //TODO: how to get name of the publisher
+                                addTrackingContactIfRegistered(publisher, publisher);
+                            }
+                            mDrawerLayout.openDrawer(Gravity.START, true);
+                            trackingContactsExpandableListView.expandGroup(0);
+                            sharingContactsExpandableListView.collapseGroup(0);
+                        }
+                    });
+            builder.create().show();
+        }
     }
 
     private void attachItemClickListeners() {
@@ -984,6 +1058,9 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
             private final Runnable onConnectRunner = () -> {
                 if(ConnectionUtils.isConnectedToInternet(HomeActivity.this)) {
                     connectionAlertTextView.setVisibility(View.GONE);
+                    if(!alreadyConnectedToServer) {
+                        connectToServer();
+                    }
                 }
             };
 

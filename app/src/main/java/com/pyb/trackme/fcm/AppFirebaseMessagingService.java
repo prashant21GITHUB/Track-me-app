@@ -62,14 +62,18 @@ public class AppFirebaseMessagingService extends FirebaseMessagingService {
                 MessageAction messageAction = MessageAction.parse(action);
                 if(messageAction.equals(STARTED_SHARING)) {
                     Intent notiIntent = new Intent(getApplicationContext(), HomeActivity.class);
-                    notificationIntent.setAction(NOTIFICATION_CHANNEL_ID + "_" + STARTED_SHARING.name());
+                    notiIntent.putExtra("PUBLISHER", remoteMessage.getData().get("PUBLISHER"));
+                    notiIntent.setAction(getApplicationInfo().packageName + "_" + STARTED_SHARING.name());
+                    notiIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                     PendingIntent pendingIntentForAction =
                             PendingIntent.getActivity(getApplicationContext(), 0, notiIntent, 0);
                     builder.addAction(R.drawable.noti_check, "Track",
                             pendingIntentForAction);
                 } else if(messageAction.equals(TRACKING_REQUEST)) {
                     Intent notiIntent = new Intent(getApplicationContext(), HomeActivity.class);
-                    notificationIntent.setAction(NOTIFICATION_CHANNEL_ID + "_" + TRACKING_REQUEST.name());
+                    notiIntent.putExtra("SUBSCRIBER", remoteMessage.getData().get("SUBSCRIBER"));
+                    notiIntent.setAction(getApplicationInfo().packageName + "_" + TRACKING_REQUEST.name());
+                    notiIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                     PendingIntent pendingIntentForAction =
                             PendingIntent.getActivity(getApplicationContext(), 0, notiIntent, 0);
                     builder.addAction(R.drawable.noti_check, "Share",
@@ -79,12 +83,12 @@ public class AppFirebaseMessagingService extends FirebaseMessagingService {
         }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            startForeground(NOTIFICATION_ID_FOR_FCM_PUSH_NOTIFICATION, builder.build());
-        } else {
+//            startForeground(NOTIFICATION_ID_FOR_FCM_PUSH_NOTIFICATION, builder.build());
+            builder.setChannelId(NOTIFICATION_CHANNEL_ID);
+        }
             NotificationManagerCompat notificationManager = NotificationManagerCompat.from(this);
             // notificationId is a unique int for each notification that you must define
             notificationManager.notify(NOTIFICATION_ID_FOR_FCM_PUSH_NOTIFICATION, builder.build());
-        }
     }
 
 }
