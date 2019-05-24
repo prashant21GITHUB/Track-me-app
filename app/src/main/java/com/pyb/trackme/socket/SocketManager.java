@@ -79,7 +79,6 @@ public class SocketManager {
     public void hardDisconnect() {
         if(mSocket.connected()) {
             mSocket.disconnect();
-            mSocket.off();
         }
         connectionListeners.clear();
     }

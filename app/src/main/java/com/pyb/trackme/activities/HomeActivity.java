@@ -819,7 +819,7 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
             // for ActivityCompat#requestPermissions for more details.
             return;
         }
-        googleMap.setMyLocationEnabled(true);
+//        googleMap.setMyLocationEnabled(true);
 //         Enable / Disable zooming controls
         googleMap.getUiSettings().setZoomControlsEnabled(true);
 
@@ -1132,6 +1132,7 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
             unsubscribeCurrentContactsGettingTracked();
             socketManager.offEvent("publisherAvailable");
             socketManager.offEvent("publisherNotAvailable");
+            socketManager.offEvent("notLive");
             socketManager.softDisconnect(socketConnectionListener);
         }
         if(googleMap != null) {

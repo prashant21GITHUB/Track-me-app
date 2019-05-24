@@ -78,7 +78,6 @@ public class LocationService extends Service {
         super.onCreate();
         LOGIN_PREF_NAME = getApplicationInfo().packageName +"_Login";
         socketManager = ((TrackMeApplication)getApplication()).getSocketManager();
-        initializeSocketEventListeners();
         db = TrackDetailsDB.db();
         showForegroundNotification();
 
@@ -218,6 +217,7 @@ public class LocationService extends Service {
         readDetailsFromPref();
         Log.d(TAG, "Service Started");
         if(!socketConnected) {
+            initializeSocketEventListeners();
             connectToServer();
         } else {
             sendEventToPublishLocationData();
@@ -339,6 +339,8 @@ public class LocationService extends Service {
 //            wakeLock.release();
 //        }
         //token passed as null, so that it can remove all runners
+        socketManager.offEvent("startSendingLocation");
+        socketManager.offEvent("stopSendingLocation");
         socketManager.sendEventMessage("stopPublish", loggedInMobile);
         handler.removeCallbacksAndMessages(null);
         stopSendingLocationUpdates();
