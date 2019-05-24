@@ -17,4 +17,5 @@ public class AppConstants {
     public static final String NOTIFICATION_CHANNEL_ID = "TrackMe_Notification_Channel";
 
     public static final String FCM_TOKEN = "FCM_TOKEN";
+    public static final String SEND_LOCATION_UPDATE = "SEND_LOCATION_UPDATE";
 }

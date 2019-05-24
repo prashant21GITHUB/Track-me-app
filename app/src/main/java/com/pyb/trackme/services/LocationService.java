@@ -9,7 +9,6 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
-import android.drm.DrmStore;
 import android.location.Location;
 import android.os.Build;
 import android.os.Handler;
@@ -29,6 +28,7 @@ import com.google.android.gms.maps.model.LatLng;
 import com.pyb.trackme.R;
 import com.pyb.trackme.TrackMeApplication;
 import com.pyb.trackme.activities.HomeActivity;
+import com.pyb.trackme.cache.AppConstants;
 import com.pyb.trackme.cache.TrackDetailsDB;
 import com.pyb.trackme.receiver.LocationServiceChangeReceiver;
 import com.pyb.trackme.receiver.NetworkChangeReceiver;
@@ -65,6 +65,7 @@ public class LocationService extends Service {
     private Handler handler;
     private TrackDetailsDB db;
     private boolean activeSubscribersAvailable;
+    private boolean sendLocationUpdate;
 
     @Override
     public IBinder onBind(Intent intent) {
@@ -169,6 +170,7 @@ public class LocationService extends Service {
             public void onEvent(String event, Object[] args) {
                 activeSubscribersAvailable = false;
                 stopSendingLocationUpdates();
+                saveSendLocationUpdateFlag(false);
             }
         });
         socketManager.onEvent("startSendingLocation", new IEventListener() {
@@ -178,6 +180,7 @@ public class LocationService extends Service {
                     @Override
                     public void run() {
                         activeSubscribersAvailable = true;
+                        saveSendLocationUpdateFlag(true);
                         resumeSendingLocationUpdates();
                     }
                 });
@@ -212,13 +215,15 @@ public class LocationService extends Service {
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         super.onStartCommand(intent, flags, startId);
-        readLoggedInUserDetailsAndSharingLocationStatus();
+        readDetailsFromPref();
         Log.d(TAG, "Service Started");
         if(!socketConnected) {
             connectToServer();
         } else {
             sendEventToPublishLocationData();
-//            resumeSendingLocationUpdates();
+            if(sendLocationUpdate) {
+                resumeSendingLocationUpdates();
+            }
         }
         registerNetworkChangeReceiver();
         registerLocationServiceChangeReceiver();
@@ -248,12 +253,14 @@ public class LocationService extends Service {
                     socketManager.sendEventMessage("connectedMobile", loggedInMobile);
                 }
                 sendEventToPublishLocationData();
-//                handler.post(new Runnable() {
-//                    @Override
-//                    public void run() {
-//                        resumeSendingLocationUpdates();
-//                    }
-//                });
+                if(sendLocationUpdate) {
+                    handler.post(new Runnable() {
+                        @Override
+                        public void run() {
+                            resumeSendingLocationUpdates();
+                        }
+                    });
+                }
             }
 
             @Override
@@ -289,10 +296,11 @@ public class LocationService extends Service {
         }
     }
 
-    private void readLoggedInUserDetailsAndSharingLocationStatus() {
+    private void readDetailsFromPref() {
         SharedPreferences preferences = this.getSharedPreferences(LOGIN_PREF_NAME, MODE_PRIVATE);
-        String mobile = preferences.getString("Mobile", "");
-        String name = preferences.getString("Name", "");
+        String mobile = preferences.getString(AppConstants.MOBILE_PREF, "");
+        String name = preferences.getString(AppConstants.NAME_PREF, "");
+        sendLocationUpdate  = preferences.getBoolean(AppConstants.SEND_LOCATION_UPDATE, false);
         loggedInName = name;
         loggedInMobile = mobile;
     }
@@ -373,5 +381,12 @@ public class LocationService extends Service {
     private void cancelSharingStoppedNotification() {
         NotificationManager notificationManager = (NotificationManager) getApplicationContext().getSystemService(Context.NOTIFICATION_SERVICE);
         notificationManager.cancel(STOPPED_SHARING_NOTIFICATION_ID);
+    }
+
+    private void saveSendLocationUpdateFlag(boolean flag) {
+        SharedPreferences preferences = getSharedPreferences(LOGIN_PREF_NAME, MODE_PRIVATE);
+        SharedPreferences.Editor editor = preferences.edit();
+        editor.putBoolean(AppConstants.SEND_LOCATION_UPDATE, flag);
+        editor.commit();
     }
 }

@@ -61,23 +61,11 @@ public class AppFirebaseMessagingService extends FirebaseMessagingService {
             if(action != null) {
                 MessageAction messageAction = MessageAction.parse(action);
                 if(messageAction.equals(STARTED_SHARING)) {
-                    Intent notiIntent = new Intent(getApplicationContext(), HomeActivity.class);
-                    notiIntent.putExtra("PUBLISHER", remoteMessage.getData().get("PUBLISHER"));
-                    notiIntent.setAction(getApplicationInfo().packageName + "_" + STARTED_SHARING.name());
-                    notiIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                    PendingIntent pendingIntentForAction =
-                            PendingIntent.getActivity(getApplicationContext(), 0, notiIntent, 0);
-                    builder.addAction(R.drawable.noti_check, "Track",
-                            pendingIntentForAction);
+                    String publisher = remoteMessage.getData().get("PUBLISHER");
+                    addIntentForStartedSharingAction(builder, publisher);
                 } else if(messageAction.equals(TRACKING_REQUEST)) {
-                    Intent notiIntent = new Intent(getApplicationContext(), HomeActivity.class);
-                    notiIntent.putExtra("SUBSCRIBER", remoteMessage.getData().get("SUBSCRIBER"));
-                    notiIntent.setAction(getApplicationInfo().packageName + "_" + TRACKING_REQUEST.name());
-                    notiIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                    PendingIntent pendingIntentForAction =
-                            PendingIntent.getActivity(getApplicationContext(), 0, notiIntent, 0);
-                    builder.addAction(R.drawable.noti_check, "Share",
-                            pendingIntentForAction);
+                    String subscriber = remoteMessage.getData().get("SUBSCRIBER");
+                    addIntentForTrackingRequestAction(builder, subscriber);
                 }
             }
         }
@@ -86,9 +74,31 @@ public class AppFirebaseMessagingService extends FirebaseMessagingService {
 //            startForeground(NOTIFICATION_ID_FOR_FCM_PUSH_NOTIFICATION, builder.build());
             builder.setChannelId(NOTIFICATION_CHANNEL_ID);
         }
-            NotificationManagerCompat notificationManager = NotificationManagerCompat.from(this);
-            // notificationId is a unique int for each notification that you must define
-            notificationManager.notify(NOTIFICATION_ID_FOR_FCM_PUSH_NOTIFICATION, builder.build());
+        NotificationManagerCompat notificationManager = NotificationManagerCompat.from(this);
+        // notificationId is a unique int for each notification that you must define
+        notificationManager.notify(NOTIFICATION_ID_FOR_FCM_PUSH_NOTIFICATION, builder.build());
+    }
+
+    private void addIntentForTrackingRequestAction(NotificationCompat.Builder builder, String subscriber) {
+        Intent notiIntent = new Intent(getApplicationContext(), HomeActivity.class);
+        notiIntent.putExtra("SUBSCRIBER", subscriber);
+        notiIntent.setAction(getApplicationInfo().packageName + "_" + TRACKING_REQUEST.name());
+        notiIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        PendingIntent pendingIntentForAction =
+                PendingIntent.getActivity(getApplicationContext(), 0, notiIntent, 0);
+        builder.addAction(R.drawable.noti_check, "Share",
+                pendingIntentForAction);
+    }
+
+    private void addIntentForStartedSharingAction(NotificationCompat.Builder builder, String publisher) {
+        Intent notiIntent = new Intent(getApplicationContext(), HomeActivity.class);
+        notiIntent.putExtra("PUBLISHER", publisher);
+        notiIntent.setAction(getApplicationInfo().packageName + "_" + STARTED_SHARING.name());
+        notiIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        PendingIntent pendingIntentForAction =
+                PendingIntent.getActivity(getApplicationContext(), 0, notiIntent, 0);
+        builder.addAction(R.drawable.noti_check, "Track",
+                pendingIntentForAction);
     }
 
 }
