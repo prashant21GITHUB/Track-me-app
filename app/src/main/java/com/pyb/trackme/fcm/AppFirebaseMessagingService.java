@@ -18,6 +18,7 @@ import static com.pyb.trackme.cache.AppConstants.NOTIFICATION_CHANNEL_ID;
 import static com.pyb.trackme.cache.AppConstants.NOTIFICATION_ID_FOR_FCM_PUSH_NOTIFICATION;
 import static com.pyb.trackme.fcm.MessageAction.STARTED_SHARING;
 import static com.pyb.trackme.fcm.MessageAction.TRACKING_REQUEST;
+import static com.pyb.trackme.fcm.MessageAction.UNKNOWN;
 
 public class AppFirebaseMessagingService extends FirebaseMessagingService {
 
@@ -39,10 +40,10 @@ public class AppFirebaseMessagingService extends FirebaseMessagingService {
     private void showMessageNotification(RemoteMessage remoteMessage) {
         RemoteMessage.Notification notification = remoteMessage.getNotification();
         Intent notificationIntent = new Intent(getApplicationContext(), HomeActivity.class);
-//        notificationIntent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
-        notificationIntent.setAction(NOTIFICATION_CHANNEL_ID);
+        notificationIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        updateActionIfPresentInRemoteMessage(remoteMessage, notificationIntent);
         PendingIntent pendingIntent =
-                PendingIntent.getActivity(getApplicationContext(), 0, notificationIntent, 0);
+                PendingIntent.getActivity(getApplicationContext(), 0, notificationIntent, PendingIntent.FLAG_UPDATE_CURRENT);
 
         Uri uri= RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
 
@@ -56,19 +57,6 @@ public class AppFirebaseMessagingService extends FirebaseMessagingService {
                         .bigText(notification.getBody()))
                 .setSound(uri)
                 .setPriority(NotificationCompat.PRIORITY_DEFAULT);
-        if(remoteMessage.getData() != null) {
-            String action = remoteMessage.getData().get("ACTION");
-            if(action != null) {
-                MessageAction messageAction = MessageAction.parse(action);
-                if(messageAction.equals(STARTED_SHARING)) {
-                    String publisher = remoteMessage.getData().get("PUBLISHER");
-                    addIntentForStartedSharingAction(builder, publisher);
-                } else if(messageAction.equals(TRACKING_REQUEST)) {
-                    String subscriber = remoteMessage.getData().get("SUBSCRIBER");
-                    addIntentForTrackingRequestAction(builder, subscriber);
-                }
-            }
-        }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
 //            startForeground(NOTIFICATION_ID_FOR_FCM_PUSH_NOTIFICATION, builder.build());
@@ -77,6 +65,26 @@ public class AppFirebaseMessagingService extends FirebaseMessagingService {
         NotificationManagerCompat notificationManager = NotificationManagerCompat.from(this);
         // notificationId is a unique int for each notification that you must define
         notificationManager.notify(NOTIFICATION_ID_FOR_FCM_PUSH_NOTIFICATION, builder.build());
+    }
+
+    private void updateActionIfPresentInRemoteMessage(RemoteMessage remoteMessage, Intent notificationIntent) {
+        if(remoteMessage.getData() != null) {
+            String action = remoteMessage.getData().get("ACTION");
+            if(action != null) {
+                MessageAction messageAction = MessageAction.parse(action);
+                if(messageAction.equals(STARTED_SHARING)) {
+                    String publisher = remoteMessage.getData().get("PUBLISHER");
+                    notificationIntent.putExtra("PUBLISHER", publisher);
+                    notificationIntent.setAction(getApplicationInfo().packageName + "_" + STARTED_SHARING.name());
+                } else if(messageAction.equals(TRACKING_REQUEST)) {
+                    String subscriber = remoteMessage.getData().get("SUBSCRIBER");
+                    notificationIntent.putExtra("SUBSCRIBER", subscriber);
+                    notificationIntent.setAction(getApplicationInfo().packageName + "_" + TRACKING_REQUEST.name());
+                }
+            }
+        } else {
+            notificationIntent.setAction(getApplicationInfo().packageName + "_" + UNKNOWN.name());
+        }
     }
 
     private void addIntentForTrackingRequestAction(NotificationCompat.Builder builder, String subscriber) {

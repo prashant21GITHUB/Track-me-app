@@ -3,4 +3,17 @@
     <color name="colorPrimary">#3F51B5</color>
     <color name="colorPrimaryDark">#303F9F</color>
     <color name="colorAccent">#FF4081</color>
+
+    <color name="text_color_primary_light">#FF212121</color>
+    <color name="text_color_secondary_light">#FFBDBDBD</color>
+    <color name="contact_badge_line_light">#ffffffff</color>
+    <color name="contact_badge_triangle_light">#cc1f1f1f</color>
+    <color name="contact_badge_overlay_light">#aa888888</color>
+
+    <!-- Dark Colors -->
+    <color name="text_color_primary_dark">#FFFAFAFA</color>
+    <color name="text_color_secondary_dark">#FF9E9E9E</color>
+    <color name="contact_badge_line_dark">#ff000000</color>
+    <color name="contact_badge_triangle_dark">#cc888888</color>
+    <color name="contact_badge_overlay_dark">#aa888888</color>
 </resources>

@@ -65,6 +65,10 @@ import com.pyb.trackme.restclient.RestClient;
 import com.pyb.trackme.restclient.ServiceResponse;
 import com.pyb.trackme.restclient.TrackingDetailsResponse;
 import com.pyb.trackme.restclient.TrackingServiceClient;
+import com.pyb.trackme.selectMultipleContacts.contact.ContactDescription;
+import com.pyb.trackme.selectMultipleContacts.contact.ContactSortOrder;
+import com.pyb.trackme.selectMultipleContacts.core.ContactPickerActivity;
+import com.pyb.trackme.selectMultipleContacts.picture.ContactPictureType;
 import com.pyb.trackme.services.LocationService;
 import com.pyb.trackme.socket.IAckListener;
 import com.pyb.trackme.socket.IConnectionListener;
@@ -139,7 +143,7 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
 
         }
     };
-    ;
+
     private boolean isActivityRunning;
     private Handler handler;
 
@@ -373,6 +377,55 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
         toggle.setDrawerSlideAnimationEnabled(true);
         toggle.setDrawerIndicatorEnabled(true);
         toggle.syncState();
+        ImageView addGrpBtn = mDrawerLayout.findViewById(R.id.add_group_btn);
+        addGrpBtn.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+
+                if (android.os.Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    if (ActivityCompat.checkSelfPermission(HomeActivity.this, Manifest.permission.READ_CONTACTS)
+                            != PackageManager.PERMISSION_GRANTED) {
+                        if (ActivityCompat.shouldShowRequestPermissionRationale(HomeActivity.this,
+                                Manifest.permission.READ_CONTACTS)) {
+
+                            new AlertDialog.Builder(HomeActivity.this)
+                                    .setTitle("Read Contacts permission needed")
+                                    .setMessage("This app needs the Read contacts permission, please accept to add a group")
+                                    .setPositiveButton("OK", new DialogInterface.OnClickListener() {
+                                        @Override
+                                        public void onClick(DialogInterface dialogInterface, int i) {
+                                            //Prompt the user once explanation has been shown
+                                            ActivityCompat.requestPermissions(HomeActivity.this,
+                                                    new String[]{Manifest.permission.READ_CONTACTS},
+                                                    MY_PERMISSIONS_READ_CONTACTS);
+                                        }
+                                    })
+                                    .create()
+                                    .show();
+
+
+                        } else {
+                            // No explanation needed, we can request the permission.
+                            ActivityCompat.requestPermissions(HomeActivity.this,
+                                    new String[]{Manifest.permission.READ_CONTACTS},
+                                    MY_PERMISSIONS_READ_CONTACTS);
+                        }
+                        return;
+                    }
+                }
+                Intent intent = new Intent(HomeActivity.this, ContactPickerActivity.class)
+//                        .putExtra(ContactPickerActivity.EXTRA_THEME, true ? R.style.Theme_Dark : R.style.Theme_Light)
+                        .putExtra(ContactPickerActivity.EXTRA_CONTACT_BADGE_TYPE, ContactPictureType.ROUND.name())
+                        .putExtra(ContactPickerActivity.EXTRA_ONLY_CONTACTS_WITH_PHONE, true)
+                        .putExtra(ContactPickerActivity.EXTRA_SELECT_CONTACTS_LIMIT, 10)
+                        .putExtra(ContactPickerActivity.EXTRA_SHOW_CHECK_ALL, false)
+                        .putExtra(ContactPickerActivity.EXTRA_CONTACT_DESCRIPTION, ContactDescription.PHONE.name())
+                        .putExtra("EXTRA_WITH_GROUP_TAB", false)
+//                        .putExtra(ContactPickerActivity.EXTRA_CONTACT_DESCRIPTION_TYPE, ContactsContract.CommonDataKinds.Email.TYPE_WORK)
+                        .putExtra(ContactPickerActivity.EXTRA_CONTACT_SORT_ORDER, ContactSortOrder.FIRST_NAME.name());
+                startActivity(intent);
+            }
+        });
     }
 
     private void openSelectContactActivity(int REQUEST_CODE_PICK_CONTACT) {
@@ -629,6 +682,7 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
     }
 
     public static final int MY_PERMISSIONS_REQUEST_LOCATION = 99;
+    public static final int MY_PERMISSIONS_READ_CONTACTS = 199;
 
     private void checkLocationPermission() {
         if (android.os.Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {

@@ -276,7 +276,7 @@ public class LocationService extends Service {
                 && ContextCompat.checkSelfPermission(getApplicationContext(), Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
             mFusedLocationClient = LocationServices.getFusedLocationProviderClient(getApplicationContext());
             mFusedLocationClient.requestLocationUpdates(mLocationRequest, mLocationCallback, Looper.myLooper());
-            Log.d(TAG, "Resume sending location updates");;
+            Log.d(TAG, "Resume sending location updates");
         } else {
             Log.e(TAG, "ACCESS_FINE_LOCATION or ACCESS_COARSE_LOCATION permissions not granted");
         }

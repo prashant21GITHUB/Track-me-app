@@ -10,10 +10,57 @@
 
     <style name="MainMenu" parent="Theme.AppCompat.NoActionBar">
         <item name="android:textColorSecondary">#ffffff</item>
+        <item name="windowNoTitle">true</item>
+        <item name="windowActionBar">false</item>
     </style>
 
     <style name="SwitchTheme" parent="Theme.AppCompat">
         <item name="android:textColorPrimaryDisableOnly">#00838f</item>
         <item name="colorControlActivated">#e92f63</item>
+    </style>
+
+    <!-- LIGHT Theme -->
+    <style name="ContactPicker_Theme_Light" parent="@style/Theme.AppCompat.Light">
+        <item name="cp_textColorPrimary">@color/text_color_primary_light</item>
+        <item name="cp_textColorSecondary">@color/text_color_secondary_light</item>
+
+        <item name="cp_badgeLineColor">@color/contact_badge_line_light</item>
+        <item name="cp_badgeTriangleColor">@color/contact_badge_triangle_light</item>
+        <item name="cp_badgeOverlayColor">@color/contact_badge_overlay_light</item>
+
+        <item name="cp_actionIconOK">@drawable/ic_done_black_24dp</item>
+        <item name="cp_actionIconCancel">@drawable/ic_close_black_24dp</item>
+        <item name="cp_actionIconCheckAll">@drawable/ic_apps_black_24dp</item>
+        <item name="cp_actionIconSearch">@drawable/ic_search_black_24dp</item>
+    </style>
+
+    <!-- LIGHT (Dark action bar) Theme -->
+    <style name="ContactPicker_Theme_Light_DarkActionBar" parent="@style/Theme.AppCompat.Light.DarkActionBar">
+        <item name="cp_textColorPrimary">@color/text_color_primary_light</item>
+        <item name="cp_textColorSecondary">@color/text_color_secondary_light</item>
+
+        <item name="cp_badgeLineColor">@color/contact_badge_line_light</item>
+        <item name="cp_badgeTriangleColor">@color/contact_badge_triangle_light</item>
+        <item name="cp_badgeOverlayColor">@color/contact_badge_overlay_light</item>
+
+        <item name="cp_actionIconOK">@drawable/ic_done_white_24dp</item>
+        <item name="cp_actionIconCancel">@drawable/ic_close_white_24dp</item>
+        <item name="cp_actionIconCheckAll">@drawable/ic_apps_white_24dp</item>
+        <item name="cp_actionIconSearch">@drawable/ic_search_white_24dp</item>
+    </style>
+
+    <!-- DARK Theme -->
+    <style name="ContactPicker_Theme_Dark" parent="@style/Theme.AppCompat">
+        <item name="cp_textColorPrimary">@color/text_color_primary_dark</item>
+        <item name="cp_textColorSecondary">@color/text_color_secondary_dark</item>
+
+        <item name="cp_badgeLineColor">@color/contact_badge_line_dark</item>
+        <item name="cp_badgeTriangleColor">@color/contact_badge_triangle_dark</item>
+        <item name="cp_badgeOverlayColor">@color/contact_badge_overlay_dark</item>
+
+        <item name="cp_actionIconOK">@drawable/ic_done_white_24dp</item>
+        <item name="cp_actionIconCancel">@drawable/ic_close_white_24dp</item>
+        <item name="cp_actionIconCheckAll">@drawable/ic_apps_white_24dp</item>
+        <item name="cp_actionIconSearch">@drawable/ic_search_white_24dp</item>
     </style>
 </resources>

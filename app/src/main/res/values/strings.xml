@@ -10,4 +10,20 @@
         <item>Earth</item>
         <item>Mars</item>
     </string-array>
+
+    <string name="cp_contact_tab_title">Contacts</string>
+    <string name="cp_group_tab_title">Groups</string>
+
+    <string name="cp_no_contacts">No Contacts</string>
+    <string name="cp_no_groups">No Groups</string>
+
+    <plurals
+        name="cp_group_description">
+        <item quantity="one">(%1$d contact)</item>
+        <item quantity="other">(%1$d contacts)</item>
+    </plurals>
+
+    <string name="cp_actionmode_selected">%d selected</string>
+
+    <string name="cp_limit_reached">You can\'t pick more than %d contacts!</string>
 </resources>
