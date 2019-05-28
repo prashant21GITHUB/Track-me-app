@@ -100,6 +100,7 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
 
     private static final int REQUEST_CODE_PICK_SHARE_CONTACT = 131;
     private static final int REQUEST_CODE_PICK_TRACK_CONTACT = 133;
+    private static final int SELECT_MULTIPLE_CONTACTS_REQUEST_CODE = 135;
     private String TRACKING_REQUEST_NOTI;
     private String STARTED_SHARING_NOTI;
     private final long DELAY_IN_MILLIS = 5000L;
@@ -423,7 +424,7 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
                         .putExtra("EXTRA_WITH_GROUP_TAB", false)
 //                        .putExtra(ContactPickerActivity.EXTRA_CONTACT_DESCRIPTION_TYPE, ContactsContract.CommonDataKinds.Email.TYPE_WORK)
                         .putExtra(ContactPickerActivity.EXTRA_CONTACT_SORT_ORDER, ContactSortOrder.FIRST_NAME.name());
-                startActivity(intent);
+                startActivityForResult(intent, SELECT_MULTIPLE_CONTACTS_REQUEST_CODE);
             }
         });
     }
@@ -1257,11 +1258,14 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
                         Toast.makeText(HomeActivity.this, "You are not online !!", Toast.LENGTH_SHORT).show();
                     }
                 }
+            } else if(requestCode == SELECT_MULTIPLE_CONTACTS_REQUEST_CODE) {
+                data.getExtras().get(RESULT_CONTACT_DATA);
             }
         }
         super.onActivityResult(requestCode, resultCode, data);
     }
 
+    public static final String RESULT_CONTACT_DATA = "RESULT_CONTACT_DATA";
     private void addTrackingContactIfRegistered(String number, String name) {
         TrackingServiceClient client = RestClient.getTrackingServiceClient();
         Call<ServiceResponse> call = client.addTrackingContact(new AddRemoveContactRequest(loggedInMobile, number, name));

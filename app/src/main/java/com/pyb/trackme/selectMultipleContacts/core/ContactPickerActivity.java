@@ -5,7 +5,10 @@ package com.pyb.trackme.selectMultipleContacts.core;
 import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.app.Fragment;
+import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
@@ -25,8 +28,13 @@ import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
 import android.util.TypedValue;
+import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.LinearLayout;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import com.pyb.trackme.R;
@@ -48,6 +56,7 @@ import org.greenrobot.eventbus.ThreadMode;
 import java.io.Serializable;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
@@ -216,6 +225,7 @@ public class ContactPickerActivity extends AppCompatActivity implements
     private int mSelectContactsLimit = 0;
     private Boolean mOnlyWithPhoneNumbers = false;
     private Boolean mWithGroupTab = true;
+    private LinearLayout selectedContactsView;
 
     // ****************************************** Lifecycle Methods *******************************************
 
@@ -238,7 +248,7 @@ public class ContactPickerActivity extends AppCompatActivity implements
             finish();
             return;
         }
-        getSupportActionBar().setTitle("Select contacts");
+//        getSupportActionBar().setTitle("Select contacts");
         getSupportActionBar().setDisplayHomeAsUpEnabled(true);
         Intent intent = getIntent();
         if (savedInstanceState == null) {
@@ -338,6 +348,7 @@ public class ContactPickerActivity extends AppCompatActivity implements
         }
 
         setContentView(R.layout.cp_contact_tab_layout);
+        selectedContactsView = findViewById(R.id.selected_contacts_view);
 
 //        ContactFragment contactFragment = ContactFragment.newInstance(mSortOrder, mBadgeType, mDescription, mDescriptionType);
 //        getSupportFragmentManager().beginTransaction().add(0, contactFragment).commit();
@@ -468,21 +479,65 @@ public class ContactPickerActivity extends AppCompatActivity implements
             }
         }
 
+
         // return only checked groups
-        List<Group> groups = new ArrayList<>();
+      /*  List<Group> groups = new ArrayList<>();
         if (mGroups != null) {
             for (Group group : mGroups) {
                 if (group.isChecked()) {
                     groups.add(group);
                 }
             }
-        }
-
-        Intent data = new Intent();
+        }*/
+        showSelectedContactsInDialog(contacts);
+        /*Intent data = new Intent();
         data.putExtra(RESULT_CONTACT_DATA, (Serializable) contacts);
-        data.putExtra(RESULT_GROUP_DATA, (Serializable) groups);
+//        data.putExtra(RESULT_GROUP_DATA, (Serializable) groups);
         setResult(Activity.RESULT_OK, data);
-        finish();
+        finish();*/
+    }
+
+    private void showSelectedContactsInDialog(List<Contact> contacts) {
+        String[] contactNames = new String[contacts.size()];
+        int i = 0;
+        for(Contact c : contacts) {
+            contactNames[i++] = c.getFirstName() + " " + c.getLastName();
+        }
+        boolean checkedItems[] = new boolean[contacts.size()];
+        Arrays.fill(checkedItems, true);
+        AlertDialog.Builder builder = new AlertDialog.Builder(this)
+                .setTitle("Selected contacts")
+                .setPositiveButton("Confirm", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        List<Contact> finalSelectedContacts = new ArrayList<>();
+                        int i = 0;
+                        for(boolean checked : checkedItems) {
+                            if(checked) {
+                                finalSelectedContacts.add(contacts.get(i));
+                            }
+                            i++ ;
+                        }
+                        Intent data = new Intent();
+                        data.putExtra(RESULT_CONTACT_DATA, (Serializable) finalSelectedContacts);
+//        data.putExtra(RESULT_GROUP_DATA, (Serializable) groups);
+                        setResult(Activity.RESULT_OK, data);
+                        finish();
+                    }
+                })
+                .setMultiChoiceItems(contactNames, checkedItems, new DialogInterface.OnMultiChoiceClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which, boolean isChecked) {
+                        checkedItems[which] = isChecked;
+                    }
+                })
+                .setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        dialog.cancel();
+                    }
+                });
+        builder.create().show();
     }
 
     // ****************************************** Loader Methods *******************************************
@@ -885,12 +940,27 @@ public class ContactPickerActivity extends AppCompatActivity implements
             if (contact.isChecked()) {
                 mNrOfSelectedContacts++;
                 mSelectedContactIds.add(contact.getId());
+//                addContactInView(contact);
             } else {
                 mSelectedContactIds.remove(contact.getId());
             }
         }
 
         updateTitle();
+    }
+
+    private void addContactInView(Contact contact) {
+        LayoutInflater vi = (LayoutInflater) getApplicationContext().getSystemService(Context.LAYOUT_INFLATER_SERVICE);
+        View v = vi.inflate(R.layout.selected_contact_view, null);
+
+// fill in any details dynamically here
+        TextView textView = (TextView) v.findViewById(R.id.contact);
+        textView.setText(contact.getFirstName());
+
+// insert into main view
+//        ViewGroup insertPoint = (ViewGroup) findViewById(R.id.insert_point);
+//        insertPoint.addView(v, 0, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.FILL_PARENT, ViewGroup.LayoutParams.FILL_PARENT));
+        selectedContactsView.addView(textView, 0);
     }
 
     /**
