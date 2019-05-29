@@ -33,11 +33,14 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Button;
 import android.widget.LinearLayout;
+import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import com.pyb.trackme.R;
+import com.pyb.trackme.adapter.GroupContactsListAdapter;
 import com.pyb.trackme.selectMultipleContacts.OnContactCheckedListener;
 import com.pyb.trackme.selectMultipleContacts.contact.Contact;
 import com.pyb.trackme.selectMultipleContacts.contact.ContactDescription;
@@ -497,6 +500,7 @@ public class ContactPickerActivity extends AppCompatActivity implements
         finish();*/
     }
 
+
     private void showSelectedContactsInDialog(List<Contact> contacts) {
         String[] contactNames = new String[contacts.size()];
         int i = 0;
@@ -505,39 +509,74 @@ public class ContactPickerActivity extends AppCompatActivity implements
         }
         boolean checkedItems[] = new boolean[contacts.size()];
         Arrays.fill(checkedItems, true);
+        LayoutInflater inflater = this.getLayoutInflater();
+        View dialogView = inflater.inflate(R.layout.group_review_activity, null);
+        ListView listView = dialogView.findViewById(R.id.group_contacts_list);
+        GroupContactsListAdapter adapter = new GroupContactsListAdapter(this, R.layout.group_review_activity, contacts);
+        listView.setAdapter(adapter);
+
         AlertDialog.Builder builder = new AlertDialog.Builder(this)
                 .setTitle("Selected contacts")
-                .setPositiveButton("Confirm", new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int which) {
-                        List<Contact> finalSelectedContacts = new ArrayList<>();
-                        int i = 0;
-                        for(boolean checked : checkedItems) {
-                            if(checked) {
-                                finalSelectedContacts.add(contacts.get(i));
-                            }
-                            i++ ;
-                        }
-                        Intent data = new Intent();
-                        data.putExtra(RESULT_CONTACT_DATA, (Serializable) finalSelectedContacts);
-//        data.putExtra(RESULT_GROUP_DATA, (Serializable) groups);
-                        setResult(Activity.RESULT_OK, data);
-                        finish();
+//                .setPositiveButton("Confirm", new DialogInterface.OnClickListener() {
+//                    @Override
+//                    public void onClick(DialogInterface dialog, int which) {
+//                        List<Contact> finalSelectedContacts = new ArrayList<>();
+//                        int i = 0;
+//                        for(boolean checked : checkedItems) {
+//                            if(checked) {
+//                                finalSelectedContacts.add(contacts.get(i));
+//                            }
+//                            i++ ;
+//                        }
+//                        Intent data = new Intent();
+//                        data.putExtra(RESULT_CONTACT_DATA, (Serializable) finalSelectedContacts);
+////        data.putExtra(RESULT_GROUP_DATA, (Serializable) groups);
+//                        setResult(Activity.RESULT_OK, data);
+//                        finish();
+//                    }
+//                })
+                .setView(dialogView);
+//                .setMultiChoiceItems(contactNames, checkedItems, new DialogInterface.OnMultiChoiceClickListener() {
+//                    @Override
+//                    public void onClick(DialogInterface dialog, int which, boolean isChecked) {
+//                        checkedItems[which] = isChecked;
+//                    }
+//                })
+//                .setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+//                    @Override
+//                    public void onClick(DialogInterface dialog, int which) {
+//                        dialog.cancel();
+//                    }
+//                });
+
+
+        AlertDialog dialog = builder.create();
+        Button confirmBtn = dialogView.findViewById(R.id.ok_btn);
+        confirmBtn.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                List<Contact> finalSelectedContacts = new ArrayList<>();
+                int i = 0;
+                for(boolean checked : checkedItems) {
+                    if(checked) {
+                        finalSelectedContacts.add(contacts.get(i));
                     }
-                })
-                .setMultiChoiceItems(contactNames, checkedItems, new DialogInterface.OnMultiChoiceClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int which, boolean isChecked) {
-                        checkedItems[which] = isChecked;
-                    }
-                })
-                .setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int which) {
-                        dialog.cancel();
-                    }
-                });
-        builder.create().show();
+                    i++ ;
+                }
+                Intent data = new Intent();
+                data.putExtra(RESULT_CONTACT_DATA, (Serializable) finalSelectedContacts);
+                setResult(Activity.RESULT_OK, data);
+                finish();
+            }
+        });
+        Button cancelBtn = dialogView.findViewById(R.id.cancel_btn);
+        cancelBtn.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                dialog.cancel();
+            }
+        });
+        dialog.show();
     }
 
     // ****************************************** Loader Methods *******************************************
