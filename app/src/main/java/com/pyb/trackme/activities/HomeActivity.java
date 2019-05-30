@@ -52,6 +52,8 @@ import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.pyb.trackme.R;
 import com.pyb.trackme.TrackMeApplication;
+import com.pyb.trackme.adapter.GroupInfo;
+import com.pyb.trackme.adapter.GroupsExpandableListViewAdapter;
 import com.pyb.trackme.adapter.IOnTrackingContactFocusListener;
 import com.pyb.trackme.adapter.SharingExpandableListViewAdapter;
 import com.pyb.trackme.adapter.TrackingExpandableListViewAdapter;
@@ -65,6 +67,7 @@ import com.pyb.trackme.restclient.RestClient;
 import com.pyb.trackme.restclient.ServiceResponse;
 import com.pyb.trackme.restclient.TrackingDetailsResponse;
 import com.pyb.trackme.restclient.TrackingServiceClient;
+import com.pyb.trackme.selectMultipleContacts.contact.Contact;
 import com.pyb.trackme.selectMultipleContacts.contact.ContactDescription;
 import com.pyb.trackme.selectMultipleContacts.contact.ContactSortOrder;
 import com.pyb.trackme.selectMultipleContacts.core.ContactPickerActivity;
@@ -93,6 +96,8 @@ import retrofit2.Response;
 
 import static com.pyb.trackme.fcm.MessageAction.STARTED_SHARING;
 import static com.pyb.trackme.fcm.MessageAction.TRACKING_REQUEST;
+import static com.pyb.trackme.selectMultipleContacts.core.ContactPickerActivity.GROUP_NAME;
+import static com.pyb.trackme.selectMultipleContacts.core.ContactPickerActivity.RESULT_CONTACT_DATA;
 
 
 public class HomeActivity extends AppCompatActivity implements OnMapReadyCallback,
@@ -1259,13 +1264,15 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
                     }
                 }
             } else if(requestCode == SELECT_MULTIPLE_CONTACTS_REQUEST_CODE) {
-                data.getExtras().get(RESULT_CONTACT_DATA);
+                String groupName = (String) data.getExtras().get(GROUP_NAME);
+                List<Contact> contacts = (List<Contact>) data.getExtras().get(RESULT_CONTACT_DATA);
+//                GroupsExpandableListViewAdapter adapter
+//                        = new GroupsExpandableListViewAdapter(HomeActivity.this, Arrays.asList(new GroupInfo()))
             }
         }
         super.onActivityResult(requestCode, resultCode, data);
     }
 
-    public static final String RESULT_CONTACT_DATA = "RESULT_CONTACT_DATA";
     private void addTrackingContactIfRegistered(String number, String name) {
         TrackingServiceClient client = RestClient.getTrackingServiceClient();
         Call<ServiceResponse> call = client.addTrackingContact(new AddRemoveContactRequest(loggedInMobile, number, name));

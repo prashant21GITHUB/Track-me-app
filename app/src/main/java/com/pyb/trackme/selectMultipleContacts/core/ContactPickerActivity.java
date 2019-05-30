@@ -33,7 +33,7 @@ import android.widget.ListView;
 import android.widget.Toast;
 
 import com.pyb.trackme.R;
-import com.pyb.trackme.adapter.GroupContactsListAdapter;
+import com.pyb.trackme.selectMultipleContacts.contact.CPGroupContactsListAdapter;
 import com.pyb.trackme.selectMultipleContacts.OnContactCheckedListener;
 import com.pyb.trackme.selectMultipleContacts.contact.Contact;
 import com.pyb.trackme.selectMultipleContacts.contact.ContactDescription;
@@ -187,7 +187,7 @@ public class ContactPickerActivity extends AppCompatActivity implements
      */
     public static final String RESULT_GROUP_DATA = "RESULT_GROUP_DATA";
 
-    private final String GROUP_NAME = "GROUP_NAME";
+    public static final String GROUP_NAME = "GROUP_NAME";
 
     private int mThemeResId;
 
@@ -477,9 +477,9 @@ public class ContactPickerActivity extends AppCompatActivity implements
 
 
         // return only checked groups
-      /*  List<Group> groups = new ArrayList<>();
+      /*  List<GroupInfo> groups = new ArrayList<>();
         if (mGroups != null) {
-            for (Group group : mGroups) {
+            for (GroupInfo group : mGroups) {
                 if (group.isChecked()) {
                     groups.add(group);
                 }
@@ -500,9 +500,9 @@ public class ContactPickerActivity extends AppCompatActivity implements
             return;
         }
         LayoutInflater inflater = this.getLayoutInflater();
-        View dialogView = inflater.inflate(R.layout.group_review_activity, null);
+        View dialogView = inflater.inflate(R.layout.cp_group_review_activity, null);
         ListView listView = dialogView.findViewById(R.id.group_contacts_list);
-        GroupContactsListAdapter adapter = new GroupContactsListAdapter(this, R.layout.group_review_activity, contacts);
+        CPGroupContactsListAdapter adapter = new CPGroupContactsListAdapter(this, R.layout.cp_group_review_activity, contacts);
         listView.setAdapter(adapter);
         EditText groupNameEditText = dialogView.findViewById(R.id.group_name);
 
@@ -517,7 +517,7 @@ public class ContactPickerActivity extends AppCompatActivity implements
             public void onClick(View v) {
                 String groupName = groupNameEditText.getText().toString();
                 if(groupName.isEmpty()) {
-                    showAlertDialogWithErrorMessage("Group name can not be empty !!");
+                    showAlertDialogWithErrorMessage("GroupInfo name can not be empty !!");
                     return;
                 }
                 List<Contact> finalSelectedContacts = new ArrayList<>();
@@ -790,7 +790,7 @@ public class ContactPickerActivity extends AppCompatActivity implements
         }
     }
 
-    // ****************************************** Group Methods *******************************************
+    // ****************************************** GroupInfo Methods *******************************************
 
     /*
      * List of all groups.

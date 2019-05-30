@@ -13,7 +13,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * GroupImpl is the concrete Group implementation.
+ * GroupImpl is the concrete GroupInfo implementation.
  * It can be instantiated and modified only within its own package to prevent modifications from
  * classes outside the package.
  */

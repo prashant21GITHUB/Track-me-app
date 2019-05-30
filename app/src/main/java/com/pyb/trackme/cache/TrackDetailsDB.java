@@ -3,6 +3,8 @@ package com.pyb.trackme.cache;
 import android.content.Context;
 import android.content.SharedPreferences;
 
+import com.pyb.trackme.adapter.GroupInfo;
+
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -11,6 +13,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -26,12 +29,40 @@ public class TrackDetailsDB {
     private Set<String> trackingContactsList;
     private Map<String, Boolean> trackingContactStatus;
     private Map<String, Boolean> sharingContactStatus;
+    private Map<String, GroupInfo> groupNameToGroupInfoMap;
 
     private TrackDetailsDB() {
         sharingContactsList = new LinkedHashSet<>();
         trackingContactsList = new LinkedHashSet<>();
         trackingContactStatus = new HashMap<>();
         sharingContactStatus = new HashMap<>();
+        groupNameToGroupInfoMap = new LinkedHashMap<>();
+    }
+
+    public boolean isGroupAlreadyExists(String groupName) {
+        return groupNameToGroupInfoMap.containsKey(groupName);
+    }
+
+    public void addNewGroup(String groupName, GroupInfo groupInfo) {
+        groupNameToGroupInfoMap.put(groupName, groupInfo);
+    }
+
+    public void deleteGroup(String groupName, GroupInfo groupInfo) {
+        groupNameToGroupInfoMap.put(groupName, groupInfo);
+    }
+
+    public boolean deleteContactFromGroup(String groupName, String contactToDelete, String groupAdmin) {
+        if(groupNameToGroupInfoMap.containsKey(groupName)) {
+            return groupNameToGroupInfoMap.get(groupName).deleteContact(contactToDelete, groupAdmin);
+        }
+        return false;
+    }
+
+    public boolean addContactFromGroup(String groupName, String contactToDelete, String groupAdmin) {
+        if(groupNameToGroupInfoMap.containsKey(groupName)) {
+            return groupNameToGroupInfoMap.get(groupName).addContact(contactToDelete, groupAdmin);
+        }
+        return false;
     }
 
     public void addContactsToShareLocation(Collection<String> contacts) {
