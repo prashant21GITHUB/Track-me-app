@@ -6,37 +6,30 @@ import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.AlertDialog;
-import android.app.Fragment;
-import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
 import android.content.res.Resources;
 import android.database.Cursor;
-import android.graphics.Color;
-import android.graphics.drawable.ColorDrawable;
 import android.net.Uri;
 import android.os.Bundle;
 import android.provider.ContactsContract;
-import android.support.design.widget.TabLayout;
 import android.support.v4.app.LoaderManager;
 import android.support.v4.content.CursorLoader;
 import android.support.v4.content.Loader;
 import android.support.v4.view.ViewPager;
 import android.support.v7.app.AppCompatActivity;
-import android.support.v7.widget.Toolbar;
 import android.util.Log;
 import android.util.TypedValue;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
-import android.view.ViewGroup;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.ListView;
-import android.widget.TextView;
 import android.widget.Toast;
 
 import com.pyb.trackme.R;
@@ -44,7 +37,6 @@ import com.pyb.trackme.adapter.GroupContactsListAdapter;
 import com.pyb.trackme.selectMultipleContacts.OnContactCheckedListener;
 import com.pyb.trackme.selectMultipleContacts.contact.Contact;
 import com.pyb.trackme.selectMultipleContacts.contact.ContactDescription;
-import com.pyb.trackme.selectMultipleContacts.contact.ContactFragment;
 import com.pyb.trackme.selectMultipleContacts.contact.ContactSelectionChanged;
 import com.pyb.trackme.selectMultipleContacts.contact.ContactSortOrder;
 import com.pyb.trackme.selectMultipleContacts.contact.ContactsLoaded;
@@ -59,7 +51,6 @@ import org.greenrobot.eventbus.ThreadMode;
 import java.io.Serializable;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
@@ -195,6 +186,8 @@ public class ContactPickerActivity extends AppCompatActivity implements
      * We put the resulting group list into the Intent as extra data with this key.
      */
     public static final String RESULT_GROUP_DATA = "RESULT_GROUP_DATA";
+
+    private final String GROUP_NAME = "GROUP_NAME";
 
     private int mThemeResId;
 
@@ -502,69 +495,44 @@ public class ContactPickerActivity extends AppCompatActivity implements
 
 
     private void showSelectedContactsInDialog(List<Contact> contacts) {
-        String[] contactNames = new String[contacts.size()];
-        int i = 0;
-        for(Contact c : contacts) {
-            contactNames[i++] = c.getFirstName() + " " + c.getLastName();
+        if(contacts.isEmpty()) {
+            showNoContactSelectedDialog();
+            return;
         }
-        boolean checkedItems[] = new boolean[contacts.size()];
-        Arrays.fill(checkedItems, true);
         LayoutInflater inflater = this.getLayoutInflater();
         View dialogView = inflater.inflate(R.layout.group_review_activity, null);
         ListView listView = dialogView.findViewById(R.id.group_contacts_list);
         GroupContactsListAdapter adapter = new GroupContactsListAdapter(this, R.layout.group_review_activity, contacts);
         listView.setAdapter(adapter);
+        EditText groupNameEditText = dialogView.findViewById(R.id.group_name);
 
         AlertDialog.Builder builder = new AlertDialog.Builder(this)
                 .setTitle("Selected contacts")
-//                .setPositiveButton("Confirm", new DialogInterface.OnClickListener() {
-//                    @Override
-//                    public void onClick(DialogInterface dialog, int which) {
-//                        List<Contact> finalSelectedContacts = new ArrayList<>();
-//                        int i = 0;
-//                        for(boolean checked : checkedItems) {
-//                            if(checked) {
-//                                finalSelectedContacts.add(contacts.get(i));
-//                            }
-//                            i++ ;
-//                        }
-//                        Intent data = new Intent();
-//                        data.putExtra(RESULT_CONTACT_DATA, (Serializable) finalSelectedContacts);
-////        data.putExtra(RESULT_GROUP_DATA, (Serializable) groups);
-//                        setResult(Activity.RESULT_OK, data);
-//                        finish();
-//                    }
-//                })
                 .setView(dialogView);
-//                .setMultiChoiceItems(contactNames, checkedItems, new DialogInterface.OnMultiChoiceClickListener() {
-//                    @Override
-//                    public void onClick(DialogInterface dialog, int which, boolean isChecked) {
-//                        checkedItems[which] = isChecked;
-//                    }
-//                })
-//                .setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
-//                    @Override
-//                    public void onClick(DialogInterface dialog, int which) {
-//                        dialog.cancel();
-//                    }
-//                });
-
 
         AlertDialog dialog = builder.create();
         Button confirmBtn = dialogView.findViewById(R.id.ok_btn);
         confirmBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
+                String groupName = groupNameEditText.getText().toString();
+                if(groupName.isEmpty()) {
+                    showAlertDialogWithErrorMessage("Group name can not be empty !!");
+                    return;
+                }
                 List<Contact> finalSelectedContacts = new ArrayList<>();
-                int i = 0;
-                for(boolean checked : checkedItems) {
-                    if(checked) {
-                        finalSelectedContacts.add(contacts.get(i));
+                for(Contact contact : contacts) {
+                    if(contact.isChecked()) {
+                        finalSelectedContacts.add(contact);
                     }
-                    i++ ;
+                }
+                if(finalSelectedContacts.isEmpty()) {
+                    showAlertDialogWithErrorMessage("No contact selected !!");
+                    return;
                 }
                 Intent data = new Intent();
                 data.putExtra(RESULT_CONTACT_DATA, (Serializable) finalSelectedContacts);
+                data.putExtra(GROUP_NAME, groupName);
                 setResult(Activity.RESULT_OK, data);
                 finish();
             }
@@ -577,6 +545,28 @@ public class ContactPickerActivity extends AppCompatActivity implements
             }
         });
         dialog.show();
+    }
+
+    private void showAlertDialogWithErrorMessage(String errorMessage) {
+        new AlertDialog.Builder(this)
+                .setMessage(errorMessage)
+                .setNeutralButton("Ok", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        dialog.cancel();
+                    }
+                }).create().show();
+    }
+
+    private void showNoContactSelectedDialog() {
+        new AlertDialog.Builder(this)
+                .setMessage("No contact selected !!")
+                .setNeutralButton("Back", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        dialog.cancel();
+                    }
+                }).create().show();
     }
 
     // ****************************************** Loader Methods *******************************************
@@ -662,10 +652,10 @@ public class ContactPickerActivity extends AppCompatActivity implements
                 readContactDetails(cursor);
                 break;
 
-            case GROUPS_LOADER_ID: {
-                readGroups(cursor);
-                break;
-            }
+//            case GROUPS_LOADER_ID: {
+//                readGroups(cursor);
+//                break;
+//            }
         }
     }
 
@@ -986,20 +976,6 @@ public class ContactPickerActivity extends AppCompatActivity implements
         }
 
         updateTitle();
-    }
-
-    private void addContactInView(Contact contact) {
-        LayoutInflater vi = (LayoutInflater) getApplicationContext().getSystemService(Context.LAYOUT_INFLATER_SERVICE);
-        View v = vi.inflate(R.layout.selected_contact_view, null);
-
-// fill in any details dynamically here
-        TextView textView = (TextView) v.findViewById(R.id.contact);
-        textView.setText(contact.getFirstName());
-
-// insert into main view
-//        ViewGroup insertPoint = (ViewGroup) findViewById(R.id.insert_point);
-//        insertPoint.addView(v, 0, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.FILL_PARENT, ViewGroup.LayoutParams.FILL_PARENT));
-        selectedContactsView.addView(textView, 0);
     }
 
     /**

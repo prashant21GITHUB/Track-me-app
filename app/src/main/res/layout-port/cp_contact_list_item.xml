@@ -4,7 +4,8 @@
     android:minHeight="?android:attr/listPreferredItemHeight"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:orientation="horizontal">
+    android:orientation="horizontal"
+    android:id="@+id/contactListItemView">
 
     <include layout="@layout/cp_select_checkbox" />
 
