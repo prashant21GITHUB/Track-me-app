@@ -544,6 +544,7 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
                     @Override
                     public void onResponse(Call<ServiceResponse> call, Response<ServiceResponse> response) {
                         if (response.isSuccessful()) {
+
                             ServiceResponse serviceResponse = response.body();
                             if (serviceResponse.isSuccess()) {
                                 unsubscribeToContact(trackingContactsList.get(position));
